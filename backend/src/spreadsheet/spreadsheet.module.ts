@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common'
+import { SpreadsheetController } from './spreadsheet.controller'
+import { SpreadsheetService } from './spreadsheet.service'
+
+@Module({
+  controllers: [SpreadsheetController],
+  providers: [SpreadsheetService],
+  exports: [SpreadsheetService],
+})
+export class SpreadsheetModule {}

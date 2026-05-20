@@ -1,0 +1,29 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}
+import { NestFactory } from '@nestjs/core'
+import { ValidationPipe, HttpExceptionFilter } from '@nestjs/common'
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
+import { AppModule } from './app.module'
+
+/**
+ * Bootstrap NestJS Application
+ *
+ * Initializes:
+ * - Global pipes for validation
+ * - Global filters for error handling
+ * - Swagger documentation
+ * - CORS configuration
+ */
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule)
+
+  // TODO: Implement global setup here
+  console.log('✅ Backend bootstrap initialized')
+}
+
+bootstrap().catch(console.error)

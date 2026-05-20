@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: rgb(6, 147, 227);
+  --color-neutral: rgb(31, 41, 55);
+  --color-border: rgb(229, 231, 235);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: rgb(249, 250, 251);
+  color: rgb(31, 41, 55);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Handsontable customization */
+.handsontable {
+  font-size: 0.875rem;
+}
+
+.handsontable th {
+  background-color: rgb(243, 244, 246);
+  border-color: rgb(229, 231, 235);
+  font-weight: 600;
+}
+
+.handsontable td {
+  border-color: rgb(229, 231, 235);
+}

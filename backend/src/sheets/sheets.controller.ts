@@ -6,5 +6,5 @@ import { SheetsService } from './sheets.service'
 @ApiBearerAuth()
 @Controller('sheets')
 export class SheetsController {
-  constructor(private readonly sheetsService: SheetsService) {}
+  constructor(private sheetsService: SheetsService) {}
 }

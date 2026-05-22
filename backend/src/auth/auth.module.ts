@@ -15,7 +15,7 @@ import { UserEntity } from '../entities/user.entity'
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: {
-        expiresIn: process.env.JWT_EXPIRATION || '3600s',
+        expiresIn: parseInt(process.env.JWT_EXPIRATION || '3600'),
       },
     }),
   ],

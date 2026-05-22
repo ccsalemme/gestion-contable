@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core'
-import { ValidationPipe, HttpExceptionFilter } from '@nestjs/common'
+import { ValidationPipe } from '@nestjs/common'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
@@ -47,4 +47,4 @@ async function bootstrap() {
   console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`)
 }
 
-bootstrap()
+bootstrap().catch(console.error)

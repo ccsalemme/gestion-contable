@@ -32,17 +32,17 @@ class ApiClient {
             return Promise.reject(error);
         });
     }
-    get(url) {
-        return this.client.get(url);
+    get(url, config) {
+        return this.client.get(url, config);
     }
-    post(url, data) {
-        return this.client.post(url, data);
+    post(url, data, config) {
+        return this.client.post(url, data, config);
     }
-    put(url, data) {
-        return this.client.put(url, data);
+    put(url, data, config) {
+        return this.client.put(url, data, config);
     }
-    delete(url) {
-        return this.client.delete(url);
+    delete(url, config) {
+        return this.client.delete(url, config);
     }
 }
 export const apiClient = new ApiClient();

@@ -56,6 +56,17 @@ export interface CellValue {
   formula?: string
 }
 
+// Auth DTO Types
+export interface LoginDto {
+  email: string
+  password: string
+}
+
+export interface RegisterDto {
+  email: string
+  password: string
+}
+
 // Permission Types
 export interface Permission {
   id: string

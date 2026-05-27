@@ -1,6 +1,6 @@
-import axios, { AxiosInstance, AxiosError } from 'axios'
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3001/api'
 
 class ApiClient {
   private client: AxiosInstance
@@ -36,20 +36,20 @@ class ApiClient {
     )
   }
 
-  get<T>(url: string) {
-    return this.client.get<T>(url)
+  get<T>(url: string, config?: AxiosRequestConfig) {
+    return this.client.get<T>(url, config)
   }
 
-  post<T>(url: string, data?: any) {
-    return this.client.post<T>(url, data)
+  post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
+    return this.client.post<T>(url, data, config)
   }
 
-  put<T>(url: string, data?: any) {
-    return this.client.put<T>(url, data)
+  put<T>(url: string, data?: any, config?: AxiosRequestConfig) {
+    return this.client.put<T>(url, data, config)
   }
 
-  delete<T>(url: string) {
-    return this.client.delete<T>(url)
+  delete<T>(url: string, config?: AxiosRequestConfig) {
+    return this.client.delete<T>(url, config)
   }
 }
 

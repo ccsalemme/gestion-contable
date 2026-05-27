@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { APP_GUARD } from '@nestjs/core'
 import { AuthModule } from './auth/auth.module'
 import { UsersModule } from './users/users.module'
 import { TenantsModule } from './tenants/tenants.module'
@@ -8,6 +9,7 @@ import { PermissionsModule } from './permissions/permissions.module'
 import { SheetsModule } from './sheets/sheets.module'
 import { SpreadsheetModule } from './spreadsheet/spreadsheet.module'
 import { LogsModule } from './logs/logs.module'
+import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
 
 @Module({
   imports: [
@@ -34,6 +36,12 @@ import { LogsModule } from './logs/logs.module'
     SheetsModule,
     SpreadsheetModule,
     LogsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuardGlobal,
+    },
   ],
 })
 export class AppModule {}

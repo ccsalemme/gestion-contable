@@ -34,9 +34,11 @@ export class AuthService {
     })
 
     return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
       token,
     }
   }
@@ -68,9 +70,11 @@ export class AuthService {
     })
 
     return {
-      id: savedUser.id,
-      email: savedUser.email,
-      role: savedUser.role,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        role: savedUser.role,
+      },
       token,
     }
   }

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { User, AuthCredentials, AuthResponse } from '@/types'
+import { User } from '@/types'
 
 interface AuthStore {
   user: User | null

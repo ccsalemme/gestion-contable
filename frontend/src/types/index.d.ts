@@ -44,6 +44,14 @@ export interface CellValue {
     value: string | number | boolean | null;
     formula?: string;
 }
+export interface LoginDto {
+    email: string;
+    password: string;
+}
+export interface RegisterDto {
+    email: string;
+    password: string;
+}
 export interface Permission {
     id: string;
     name: string;

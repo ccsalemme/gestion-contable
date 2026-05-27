@@ -19,9 +19,11 @@ export class RegisterDto {
 }
 
 export class AuthResponseDto {
-  id: string
-  email: string
-  role: string
+  user: {
+    id: string
+    email: string
+    role: string
+  }
   token: string
   refreshToken?: string
 }

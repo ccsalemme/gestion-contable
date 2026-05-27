@@ -7,4 +7,8 @@ export const authApi = {
 
   register: (data: RegisterDto) =>
     apiClient.post<AuthResponse>('/auth/register', data),
+
+  logout: () => {
+    localStorage.removeItem('authToken')
+  },
 }

@@ -1,11 +1,25 @@
 import { Routes as ReactRoutes, Route, Navigate } from 'react-router-dom'
+import { LoginPage } from '@/pages'
+import SpreadsheetPage from '@/pages/SpreadsheetPage'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 export default function Routes() {
   return (
     <ReactRoutes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<div>Dashboard - Coming Soon</div>} />
-      <Route path="/login" element={<div>Login - Coming Soon</div>} />
+      {/* Public Routes */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected Routes */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <SpreadsheetPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Redirect all other routes to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </ReactRoutes>
   )

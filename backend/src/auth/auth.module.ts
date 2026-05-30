@@ -10,7 +10,7 @@ import { UserEntity } from '../entities/user.entity'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity]),
+    // TypeOrmModule.forFeature([UserEntity]), // Desactivado temporalmente - sin DB
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
@@ -19,8 +19,8 @@ import { UserEntity } from '../entities/user.entity'
       },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
-  exports: [AuthService],
+  controllers: [], // AuthController - Desactivado sin DB
+  providers: [], // AuthService, JwtStrategy, LocalStrategy - Desactivado sin DB
+  exports: [], // AuthService
 })
 export class AuthModule {}

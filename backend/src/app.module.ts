@@ -16,18 +16,19 @@ import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
       isGlobal: true,
       envFilePath: '.env',
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      username: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'postgres',
-      database: process.env.DATABASE_NAME || 'plataforma_contable',
-      entities: ['dist/**/*.entity{.ts,.js}'],
-      migrations: ['dist/migrations/*{.ts,.js}'],
-      synchronize: true, // Set to false in production
-      logging: process.env.NODE_ENV === 'development',
-    }),
+    // TypeORM desactivado temporalmente - descomentar cuando tengas PostgreSQL
+    // TypeOrmModule.forRoot({
+    //   type: 'postgres',
+    //   host: process.env.DATABASE_HOST || 'localhost',
+    //   port: parseInt(process.env.DATABASE_PORT || '5432'),
+    //   username: process.env.DATABASE_USER || 'postgres',
+    //   password: process.env.DATABASE_PASSWORD || 'postgres',
+    //   database: process.env.DATABASE_NAME || 'plataforma_contable',
+    //   entities: ['dist/**/*.entity{.ts,.js}'],
+    //   migrations: ['dist/migrations/*{.ts,.js}'],
+    //   synchronize: true, // Set to false in production
+    //   logging: process.env.NODE_ENV === 'development',
+    // }),
     AuthModule,
     UsersModule,
     TenantsModule,
@@ -36,10 +37,11 @@ import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
     SpreadsheetModule,
   ],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuardGlobal,
-    },
+    // Guard global JWT desactivado sin DB
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuardGlobal,
+    // },
   ],
 })
 export class AppModule {}

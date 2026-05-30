@@ -8,7 +8,6 @@ import { TenantsModule } from './tenants/tenants.module'
 import { PermissionsModule } from './permissions/permissions.module'
 import { SheetsModule } from './sheets/sheets.module'
 import { SpreadsheetModule } from './spreadsheet/spreadsheet.module'
-import { LogsModule } from './logs/logs.module'
 import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
 
 @Module({
@@ -35,7 +34,6 @@ import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
     PermissionsModule,
     SheetsModule,
     SpreadsheetModule,
-    LogsModule,
   ],
   providers: [
     {

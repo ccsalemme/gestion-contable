@@ -1,26 +1,26 @@
-import { Routes as ReactRoutes, Route, Navigate } from 'react-router-dom'
-import { LoginPage } from '@/pages'
-import SpreadsheetPage from '@/pages/SpreadsheetPage'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { createBrowserRouter } from "react-router";
+import Root from "@/components/Root";
+import Login from "@/components/Login";
+import AppLayout from "@/components/AppLayout";
+import SpreadsheetView from "@/components/SpreadsheetView";
+import FilesView from "@/components/FilesView";
+import ExportView from "@/components/ExportView";
 
-export default function Routes() {
-  return (
-    <ReactRoutes>
-      {/* Public Routes */}
-      <Route path="/login" element={<LoginPage />} />
-
-      {/* Protected Routes */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <SpreadsheetPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Redirect all other routes to home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </ReactRoutes>
-  )
-}
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    Component: Root,
+    children: [
+      { path: "login", Component: Login },
+      {
+        path: "/",
+        Component: AppLayout,
+        children: [
+          { index: true, Component: SpreadsheetView },
+          { path: "files", Component: FilesView },
+          { path: "export", Component: ExportView },
+        ],
+      },
+    ],
+  },
+]);

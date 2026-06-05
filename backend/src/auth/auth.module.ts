@@ -19,8 +19,8 @@ import { UserEntity } from '../entities/user.entity'
       },
     }),
   ],
-  controllers: [], // AuthController - Desactivado sin DB
-  providers: [], // AuthService, JwtStrategy, LocalStrategy - Desactivado sin DB
-  exports: [], // AuthService
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy, LocalStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}

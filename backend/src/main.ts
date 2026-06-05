@@ -11,10 +11,35 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api')
 
-  // CORS
+  // CORS con logs para debuggear
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000'
+  const allowedOrigins = corsOrigin.split(',').map(o => o.trim())
+  
+  console.log('🔐 CORS Configuration:')
+  console.log(`   NODE_ENV: ${process.env.NODE_ENV}`)
+  console.log(`   CORS_ORIGIN env var: ${process.env.CORS_ORIGIN}`)
+  console.log(`   Allowed origins: ${JSON.stringify(allowedOrigins)}`)
+  
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      console.log(`📨 CORS preflight request from origin: ${origin}`)
+      
+      if (!origin) {
+        console.log('✅ No origin header (same-origin request)')
+        return callback(null, true)
+      }
+      
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        console.log(`✅ Origin allowed: ${origin}`)
+        return callback(null, true)
+      }
+      
+      console.log(`❌ Origin NOT allowed: ${origin}`)
+      return callback(new Error(`CORS not allowed for origin: ${origin}`))
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 
   // Global pipes
@@ -45,6 +70,7 @@ async function bootstrap() {
   await app.listen(port)
   console.log(`✅ Application is running on: http://localhost:${port}`)
   console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs`)
+  console.log(`🔗 Expected frontend origins: ${allowedOrigins.join(', ')}`)
 }
 
 bootstrap().catch(console.error)

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { APP_GUARD } from '@nestjs/core'
+import * as path from 'path'
 import { AuthModule } from './auth/auth.module'
 import { UsersModule } from './users/users.module'
 import { TenantsModule } from './tenants/tenants.module'
@@ -10,11 +11,13 @@ import { SheetsModule } from './sheets/sheets.module'
 import { SpreadsheetModule } from './spreadsheet/spreadsheet.module'
 import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
 
+// Force reload of environment variables
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: path.join(__dirname, '..', '.env'),
+      cache: false,
     }),
     // TypeORM desactivado temporalmente - descomentar cuando tengas PostgreSQL
     // TypeOrmModule.forRoot({

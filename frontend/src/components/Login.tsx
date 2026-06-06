@@ -1,21 +1,36 @@
 import { useState } from "react";
 import { useAuth } from "./Root";
 import { Lock, Mail } from "lucide-react";
+import { authApi } from "@/api/auth";
 
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      const response = await authApi.login({ email, password });
+      const { token, user } = response.data;
+      
+      // Guardar token en localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
       login();
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
+      setError(errorMessage);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -25,6 +40,12 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-gray-900">Iniciar sesión</h1>
           <p className="text-gray-500 mt-2 text-sm">Ingresa a tu cuenta para acceder a los datos</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

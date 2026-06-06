@@ -1,12 +1,20 @@
 import { apiClient } from './client'
 
+export interface SheetRow {
+  [key: string]: string | number | boolean | null
+}
+
 export const sheetsApi = {
-  sync: (tenantId: string) =>
-    apiClient.post(`/sheets/sync/${tenantId}`),
+  getSheetData: (sheetId?: string, range?: string) => {
+    const params: any = {}
+    if (sheetId) params.sheetId = sheetId
+    if (range) params.range = range
+    return apiClient.get<SheetRow[]>('/sheets', { params })
+  },
 
-  getSheetData: (tenantId: string, sheetId: string, range?: string) =>
-    apiClient.get(`/sheets/${tenantId}/${sheetId}`, range ? { params: { range } } : undefined),
+  getDefaultSheet: () => 
+    apiClient.get<SheetRow[]>('/sheets/default'),
 
-  updateSheetData: (tenantId: string, sheetId: string, data: any) =>
-    apiClient.put(`/sheets/${tenantId}/${sheetId}`, { data }),
+  debugTest: () =>
+    apiClient.get('/sheets/debug/test'),
 }

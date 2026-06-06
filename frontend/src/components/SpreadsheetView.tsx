@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Save, Download, Plus, Settings2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router";
+import { Save, Download, Plus, Settings2, RefreshCw, ArrowLeft } from "lucide-react";
+import { sheetsApi, SheetRow } from "@/api/sheets";
 
 const COLS = 15;
 const ROWS = 50;
@@ -14,30 +16,97 @@ const getColumnLabel = (index: number) => {
   return label;
 };
 
-const initialData: Record<string, string> = {
-  "0-0": "ID", "0-1": "Nombre", "0-2": "Apellido", "0-3": "Email", "0-4": "Teléfono", "0-5": "Estado", "0-6": "Fecha de Registro",
-  "1-0": "1001", "1-1": "Juan", "1-2": "Pérez", "1-3": "juan.perez@example.com", "1-4": "+34 600 123 456", "1-5": "Activo", "1-6": "2023-01-15",
-  "2-0": "1002", "2-1": "María", "2-2": "García", "2-3": "maria.g@example.com", "2-4": "+34 611 987 654", "2-5": "Pendiente", "2-6": "2023-02-20",
-  "3-0": "1003", "3-1": "Carlos", "3-2": "López", "3-3": "clopez@example.com", "3-4": "+34 622 345 678", "3-5": "Inactivo", "3-6": "2023-03-05",
-};
-
 interface Sheet {
   id: string;
   name: string;
   data: Record<string, string>;
+  headers: string[];
 }
 
 export default function SpreadsheetView() {
-  const [sheets, setSheets] = useState<Sheet[]>([
-    { id: "1", name: "Clientes Q1", data: { ...initialData } },
-    { id: "2", name: "Proveedores", data: { "0-0": "ID", "0-1": "Empresa", "0-2": "Contacto" } },
-    { id: "3", name: "Inventario", data: { "0-0": "SKU", "0-1": "Producto", "0-2": "Stock" } },
-  ]);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const sheetId = searchParams.get('sheetId'); // Obtener sheetId de query params
+  
+  const [sheets, setSheets] = useState<Sheet[]>([]);
   const [activeSheetId, setActiveSheetId] = useState("1");
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentFileName, setCurrentFileName] = useState<string>('Hoja de Cálculo');
+
+  // Cargar datos desde Google Sheets al montar el componente o cuando cambia sheetId
+  useEffect(() => {
+    loadSheetData();
+  }, [sheetId]);
+
+  const loadSheetData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await sheetsApi.getSheetData(sheetId || undefined);
+      const rows: SheetRow[] = response.data;
+
+      if (rows.length > 0) {
+        // Extraer headers de las keys del primer objeto
+        const headers = Object.keys(rows[0]);
+        
+        // Convertir datos a formato de hoja de cálculo
+        const sheetData: Record<string, string> = {};
+        
+        // Headers en la primera fila
+        headers.forEach((header, colIndex) => {
+          sheetData[`0-${colIndex}`] = header;
+        });
+
+        // Datos en las filas siguientes
+        rows.forEach((row, rowIndex) => {
+          headers.forEach((header, colIndex) => {
+            const value = row[header];
+            sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
+          });
+        });
+
+        setSheets([
+          { 
+            id: "1", 
+            name: "Datos de Google Sheets", 
+            data: sheetData,
+            headers 
+          }
+        ]);
+        setActiveSheetId("1");
+      }
+    } catch (err: any) {
+      console.error('Error loading sheet data:', err);
+      setError('Error al cargar datos de Google Sheets. Usando datos de ejemplo.');
+      // Cargar datos de ejemplo en caso de error
+      loadMockData();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMockData = () => {
+    const mockData: Record<string, string> = {
+      "0-0": "ID", "0-1": "Nombre", "0-2": "Apellido", "0-3": "Email", "0-4": "Teléfono", "0-5": "Estado", "0-6": "Fecha de Registro",
+      "1-0": "1", "1-1": "Juan", "1-2": "Pérez", "1-3": "juan.perez@example.com", "1-4": "+34 600 123 456", "1-5": "Activo", "1-6": "2023-01-15",
+      "2-0": "2", "2-1": "María", "2-2": "García", "2-3": "maria.g@example.com", "2-4": "+34 611 987 654", "2-5": "Pendiente", "2-6": "2023-02-20",
+      "3-0": "3", "3-1": "Carlos", "3-2": "López", "3-3": "clopez@example.com", "3-4": "+34 622 345 678", "3-5": "Inactivo", "3-6": "2023-03-05",
+    };
+    
+    setSheets([
+      { 
+        id: "1", 
+        name: "Datos de Ejemplo", 
+        data: mockData,
+        headers: ["ID", "Nombre", "Apellido", "Email", "Teléfono", "Estado", "Fecha de Registro"]
+      }
+    ]);
+  };
 
   const activeSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
-  const activeData = activeSheet.data;
+  const activeData = activeSheet?.data || {};
 
   const handleCellChange = (row: number, col: number, value: string) => {
     setSheets(prev => prev.map(sheet => {
@@ -55,25 +124,60 @@ export default function SpreadsheetView() {
     const newId = Date.now().toString();
     setSheets([
       ...sheets, 
-      { id: newId, name: `Hoja ${sheets.length + 1}`, data: {} }
+      { 
+        id: newId, 
+        name: `Hoja ${sheets.length + 1}`, 
+        data: {},
+        headers: []
+      }
     ]);
     setActiveSheetId(newId);
   };
+
+  if (!sheets.length && loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+          <p className="text-gray-600">Cargando datos de Google Sheets...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
       {/* Toolbar */}
       <div className="h-12 flex items-center justify-between px-6 border-b border-gray-200 bg-gray-50/50 shrink-0">
         <div className="flex items-center space-x-3">
+          {sheetId && (
+            <button 
+              onClick={() => navigate('/files')}
+              className="flex items-center space-x-1 px-3 py-1.5 hover:bg-gray-200 rounded-md transition-colors text-gray-700 text-sm font-medium"
+            >
+              <ArrowLeft size={14} />
+              <span>Archivos</span>
+            </button>
+          )}
           <div className="text-xs text-gray-600 flex space-x-1">
             <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Archivo</button>
             <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Editar</button>
             <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Ver</button>
             <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Formato</button>
-            <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Datos</button>
+            <button 
+              className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium flex items-center space-x-1"
+              onClick={loadSheetData}
+              disabled={loading}
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              <span>Recargar</span>
+            </button>
           </div>
         </div>
         <div className="flex items-center space-x-3">
+          {error && (
+            <span className="text-xs text-amber-600 font-medium">{error}</span>
+          )}
           <button className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 rounded-md text-sm font-medium text-gray-700 transition-colors">
             <Settings2 size={14} />
             <span>Filtros</span>

@@ -9,6 +9,7 @@ import { TenantsModule } from './tenants/tenants.module'
 import { PermissionsModule } from './permissions/permissions.module'
 import { SheetsModule } from './sheets/sheets.module'
 import { SpreadsheetModule } from './spreadsheet/spreadsheet.module'
+import { DriveModule } from './drive/drive.module'
 import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
 
 // Force reload of environment variables
@@ -38,6 +39,7 @@ import { JwtAuthGuardGlobal } from './common/guards/jwt-auth-global.guard'
     PermissionsModule,
     SheetsModule,
     SpreadsheetModule,
+    DriveModule,
   ],
   providers: [
     // Guard global JWT desactivado sin DB

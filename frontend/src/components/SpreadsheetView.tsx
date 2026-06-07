@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import { Save, Download, Plus, Settings2, RefreshCw, ArrowLeft } from "lucide-react";
-import { sheetsApi, SheetRow } from "@/api/sheets";
+import { Save, Plus, Settings2, RefreshCw, ArrowLeft, Search, X } from "lucide-react";
+import { sheetsApi, SheetRow, SheetMetadata } from "@/api/sheets";
 
-const COLS = 15;
-const ROWS = 50;
+const COLS = 50; // Aumentado de 15 a 50 para soportar más columnas
+const ROWS = 100; // Aumentado de 50 a 100
 
 const getColumnLabel = (index: number) => {
   let label = "";
@@ -21,6 +21,7 @@ interface Sheet {
   name: string;
   data: Record<string, string>;
   headers: string[];
+  sheetId?: number; // ID interno de Google Sheets
 }
 
 export default function SpreadsheetView() {
@@ -32,8 +33,11 @@ export default function SpreadsheetView() {
   const [activeSheetId, setActiveSheetId] = useState("1");
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentFileName, setCurrentFileName] = useState<string>('Hoja de Cálculo');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<Map<string, { range: string; value: any }>>(new Map());
+  const [sheetSearchQuery, setSheetSearchQuery] = useState("");
 
   // Cargar datos desde Google Sheets al montar el componente o cuando cambia sheetId
   useEffect(() => {
@@ -44,43 +48,95 @@ export default function SpreadsheetView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await sheetsApi.getSheetData(sheetId || undefined);
-      const rows: SheetRow[] = response.data;
+      if (!sheetId) {
+        setError('No se especificó un ID de hoja');
+        setLoading(false);
+        return;
+      }
 
-      if (rows.length > 0) {
-        // Extraer headers de las keys del primer objeto
-        const headers = Object.keys(rows[0]);
+      // Primero, obtener metadata de las hojas
+      const metadataResponse = await sheetsApi.getSheetMetadata(sheetId);
+      if (metadataResponse.data.success && metadataResponse.data.sheets.length > 0) {
+        const availableSheets = metadataResponse.data.sheets;
         
-        // Convertir datos a formato de hoja de cálculo
-        const sheetData: Record<string, string> = {};
+        // Cargar datos de todas las hojas
+        const loadedSheets: Sheet[] = [];
         
-        // Headers en la primera fila
-        headers.forEach((header, colIndex) => {
-          sheetData[`0-${colIndex}`] = header;
-        });
+        for (const sheetMeta of metadataResponse.data.sheets) {
+          try {
+            const response = await sheetsApi.getSheetDataByName(sheetId, sheetMeta.title);
+            const rows: SheetRow[] = response.data;
 
-        // Datos en las filas siguientes
-        rows.forEach((row, rowIndex) => {
-          headers.forEach((header, colIndex) => {
-            const value = row[header];
-            sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
-          });
-        });
+            if (rows.length > 0) {
+              const headers = Object.keys(rows[0]);
+              const sheetData: Record<string, string> = {};
+              
+              // Headers en la primera fila
+              headers.forEach((header, colIndex) => {
+                sheetData[`0-${colIndex}`] = header;
+              });
 
-        setSheets([
-          { 
-            id: "1", 
-            name: "Datos de Google Sheets", 
-            data: sheetData,
-            headers 
+              // Datos en las filas siguientes
+              rows.forEach((row, rowIndex) => {
+                headers.forEach((header, colIndex) => {
+                  const value = row[header];
+                  sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
+                });
+              });
+
+              loadedSheets.push({
+                id: sheetMeta.sheetId.toString(),
+                name: sheetMeta.title,
+                data: sheetData,
+                headers,
+                sheetId: sheetMeta.sheetId,
+              });
+            }
+          } catch (err) {
+            console.error(`Error loading sheet "${sheetMeta.title}":`, err);
           }
-        ]);
-        setActiveSheetId("1");
+        }
+
+        if (loadedSheets.length > 0) {
+          setSheets(loadedSheets);
+          setActiveSheetId(loadedSheets[0].id);
+        } else {
+          setError('No se pudieron cargar datos de las hojas');
+        }
+      } else {
+        // Fallback: cargar datos sin metadata
+        const response = await sheetsApi.getSheetData(sheetId);
+        const rows: SheetRow[] = response.data;
+
+        if (rows.length > 0) {
+          const headers = Object.keys(rows[0]);
+          const sheetData: Record<string, string> = {};
+          
+          headers.forEach((header, colIndex) => {
+            sheetData[`0-${colIndex}`] = header;
+          });
+
+          rows.forEach((row, rowIndex) => {
+            headers.forEach((header, colIndex) => {
+              const value = row[header];
+              sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
+            });
+          });
+
+          setSheets([
+            { 
+              id: "1", 
+              name: "Datos de Google Sheets", 
+              data: sheetData,
+              headers 
+            }
+          ]);
+          setActiveSheetId("1");
+        }
       }
     } catch (err: any) {
       console.error('Error loading sheet data:', err);
-      setError('Error al cargar datos de Google Sheets. Usando datos de ejemplo.');
-      // Cargar datos de ejemplo en caso de error
+      setError('Error al cargar datos de Google Sheets.');
       loadMockData();
     } finally {
       setLoading(false);
@@ -118,6 +174,51 @@ export default function SpreadsheetView() {
       }
       return sheet;
     }));
+
+    // Rastrear cambio pendiente
+    const cellId = `${row}-${col}`;
+    const columnLabel = getColumnLabel(col);
+    const range = `${columnLabel}${row + 1}`; // Ej: A1, B5, C10
+    
+    setPendingChanges(prev => {
+      const newChanges = new Map(prev);
+      newChanges.set(cellId, { range, value });
+      return newChanges;
+    });
+  };
+
+  const handleSave = async () => {
+    if (pendingChanges.size === 0) {
+      setSaveMessage('No hay cambios para guardar');
+      setTimeout(() => setSaveMessage(null), 3000);
+      return;
+    }
+
+    if (!sheetId) {
+      setError('No se puede guardar: ID de hoja no especificado');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSaveMessage(null);
+
+    try {
+      const updates = Array.from(pendingChanges.values());
+      
+      await sheetsApi.updateCells(sheetId, updates);
+      
+      setPendingChanges(new Map());
+      setSaveMessage(`✓ ${updates.length} cambios guardados exitosamente`);
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Error saving changes:', err);
+      setError('Error al guardar cambios. Inténtalo de nuevo.');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addSheet = () => {
@@ -178,13 +279,25 @@ export default function SpreadsheetView() {
           {error && (
             <span className="text-xs text-amber-600 font-medium">{error}</span>
           )}
+          {saveMessage && (
+            <span className="text-xs text-green-600 font-medium">{saveMessage}</span>
+          )}
+          {pendingChanges.size > 0 && !saving && (
+            <span className="text-xs text-blue-600 font-medium">
+              {pendingChanges.size} cambio{pendingChanges.size > 1 ? 's' : ''} sin guardar
+            </span>
+          )}
           <button className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 rounded-md text-sm font-medium text-gray-700 transition-colors">
             <Settings2 size={14} />
             <span>Filtros</span>
           </button>
-          <button className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 shadow-sm rounded-md text-sm font-medium text-white transition-colors">
-            <Save size={14} />
-            <span>Guardar Cambios</span>
+          <button 
+            onClick={handleSave}
+            disabled={saving || pendingChanges.size === 0 || !sheetId}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 shadow-sm rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={14} className={saving ? "animate-spin" : ""} />
+            <span>{saving ? 'Guardando...' : 'Guardar Cambios'}</span>
           </button>
         </div>
       </div>
@@ -267,28 +380,58 @@ export default function SpreadsheetView() {
       </div>
 
       {/* Bottom Tabs for Sheets */}
-      <div className="h-10 border-t border-gray-200 bg-gray-100 flex items-center px-2 shrink-0 overflow-x-auto">
-        <button 
-          onClick={addSheet}
-          className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-300 rounded mr-2 transition-colors flex-shrink-0"
-          title="Añadir hoja"
-        >
-          <Plus size={18} />
-        </button>
-        <div className="flex space-x-1">
-          {sheets.map(sheet => (
-            <button
-              key={sheet.id}
-              onClick={() => setActiveSheetId(sheet.id)}
-              className={`px-4 py-1.5 text-sm font-medium whitespace-nowrap border-b-2 rounded-t-md transition-colors ${
-                activeSheetId === sheet.id
-                  ? "bg-white border-blue-600 text-blue-700 shadow-sm"
-                  : "border-transparent text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {sheet.name}
-            </button>
-          ))}
+      <div className="h-16 border-t border-gray-200 bg-gray-100 flex items-center px-2 shrink-0">
+        <div className="flex items-center space-x-2 flex-1">
+          {/* Buscador de hojas */}
+          <div className="relative flex-shrink-0">
+            <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={sheetSearchQuery}
+              onChange={(e) => setSheetSearchQuery(e.target.value)}
+              placeholder="Buscar hoja..."
+              className="pl-8 pr-8 py-1 text-xs border border-gray-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-48"
+            />
+            {sheetSearchQuery && (
+              <button
+                onClick={() => setSheetSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Botón añadir hoja */}
+          <button 
+            onClick={addSheet}
+            className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-300 rounded transition-colors flex-shrink-0"
+            title="Añadir hoja"
+          >
+            <Plus size={18} />
+          </button>
+
+          {/* Lista de hojas con scroll horizontal */}
+          <div className="flex space-x-1 overflow-x-auto flex-1">
+            {sheets
+              .filter(sheet => 
+                sheetSearchQuery === "" || 
+                sheet.name.toLowerCase().includes(sheetSearchQuery.toLowerCase())
+              )
+              .map(sheet => (
+                <button
+                  key={sheet.id}
+                  onClick={() => setActiveSheetId(sheet.id)}
+                  className={`px-4 py-1.5 text-sm font-medium whitespace-nowrap border-b-2 rounded-t-md transition-colors flex-shrink-0 ${
+                    activeSheetId === sheet.id
+                      ? "bg-white border-blue-600 text-blue-700 shadow-sm"
+                      : "border-transparent text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {sheet.name}
+                </button>
+              ))}
+          </div>
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ export class SheetsService {
       this.auth = new google.auth.GoogleAuth({
         credentials,
         scopes: [
-          'https://www.googleapis.com/auth/spreadsheets.readonly',
+          'https://www.googleapis.com/auth/spreadsheets',
           'https://www.googleapis.com/auth/drive.readonly',
         ],
       })
@@ -54,7 +54,7 @@ export class SheetsService {
   /**
    * Obtiene datos de Google Sheets
    */
-  async getSheetData(sheetId?: string, range: string = 'A1:Z1000'): Promise<SheetRow[]> {
+  async getSheetData(sheetId?: string, range: string = 'A1:ZZ1000'): Promise<SheetRow[]> {
     try {
       const spreadsheetId = sheetId || this.configService.get<string>('GOOGLE_SHEET_ID')
       
@@ -143,5 +143,211 @@ export class SheetsService {
         'Fecha de Registro': '2023-04-10',
       },
     ]
+  }
+
+  /**
+   * Actualiza una celda en Google Sheets
+   * @param sheetId ID de la hoja de cálculo
+   * @param range Rango de la celda (ej: 'A1', 'B5', 'Sheet1!C10')
+   * @param value Valor a escribir
+   */
+  async updateCell(sheetId: string, range: string, value: any): Promise<any> {
+    try {
+      if (!this.sheets) {
+        this.logger.warn('Google Sheets not configured')
+        return { success: false, message: 'Google Sheets not configured' }
+      }
+
+      this.logger.log(`Updating cell ${range} in spreadsheet ${sheetId} with value: ${value}`)
+
+      const response = await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[value]],
+        },
+      })
+
+      this.logger.log(`Cell updated successfully: ${response.data.updatedCells} cells updated`)
+      return {
+        success: true,
+        updatedCells: response.data.updatedCells,
+        updatedRange: response.data.updatedRange,
+      }
+    } catch (error) {
+      this.logger.error(`Error updating cell: ${error.message}`)
+      return { success: false, message: error.message }
+    }
+  }
+
+  /**
+   * Actualiza múltiples celdas en Google Sheets
+   */
+  async updateCells(sheetId: string, updates: Array<{range: string, value: any}>): Promise<any> {
+    try {
+      if (!this.sheets) {
+        this.logger.warn('Google Sheets not configured')
+        return { success: false, message: 'Google Sheets not configured' }
+      }
+
+      const data = updates.map(update => ({
+        range: update.range,
+        values: [[update.value]],
+      }))
+
+      const response = await this.sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          valueInputOption: 'USER_ENTERED',
+          data,
+        },
+      })
+
+      this.logger.log(`Batch update completed: ${response.data.totalUpdatedCells} cells updated`)
+      return {
+        success: true,
+        totalUpdatedCells: response.data.totalUpdatedCells,
+        responses: response.data.responses,
+      }
+    } catch (error) {
+      this.logger.error(`Error updating cells: ${error.message}`)
+      return { success: false, message: error.message }
+    }
+  }
+
+  /**
+   * Obtiene información sobre las pestañas/hojas del spreadsheet
+   */
+  async getSheetMetadata(sheetId?: string): Promise<any> {
+    try {
+      const spreadsheetId = sheetId || this.configService.get<string>('GOOGLE_SHEET_ID')
+      
+      if (!this.sheets || !spreadsheetId) {
+        this.logger.warn('Google Sheets not configured')
+        return { success: false, message: 'Google Sheets not configured' }
+      }
+
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets(properties(sheetId,title,index,gridProperties))',
+      })
+
+      const sheetsList = response.data.sheets.map((sheet: any) => ({
+        sheetId: sheet.properties.sheetId,
+        title: sheet.properties.title,
+        index: sheet.properties.index,
+        rowCount: sheet.properties.gridProperties?.rowCount,
+        columnCount: sheet.properties.gridProperties?.columnCount,
+      }))
+
+      this.logger.log(`Retrieved ${sheetsList.length} sheets from spreadsheet`)
+      return {
+        success: true,
+        sheets: sheetsList,
+      }
+    } catch (error) {
+      this.logger.error(`Error fetching sheet metadata: ${error.message}`)
+      return { success: false, message: error.message }
+    }
+  }
+
+  /**
+   * Obtiene datos de una pestaña específica
+   */
+  async getSheetDataByName(spreadsheetId: string, sheetName: string, range?: string): Promise<SheetRow[]> {
+    try {
+      if (!this.sheets) {
+        this.logger.warn('Google Sheets not configured')
+        return []
+      }
+
+      // Construir el rango con el nombre de la hoja
+      const fullRange = range 
+        ? `'${sheetName}'!${range}` 
+        : `'${sheetName}'!A1:ZZ1000`
+
+      this.logger.log(`Fetching data from sheet "${sheetName}" with range ${fullRange}`)
+
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: fullRange,
+      })
+
+      const rows = response.data.values
+      if (!rows || rows.length === 0) {
+        this.logger.warn(`No data found in sheet "${sheetName}"`)
+        return []
+      }
+
+      // Primera fila como headers
+      const headers = rows[0]
+      const data: SheetRow[] = []
+
+      // Convertir filas a objetos
+      for (let i = 1; i < rows.length; i++) {
+        const row: SheetRow = {}
+        for (let j = 0; j < headers.length; j++) {
+          const header = headers[j]
+          const value = rows[i][j] || ''
+          row[header] = value
+        }
+        data.push(row)
+      }
+
+      this.logger.log(`Retrieved ${data.length} rows from sheet "${sheetName}"`)
+      return data
+    } catch (error) {
+      this.logger.error(`Error fetching data from sheet "${sheetName}": ${error.message}`)
+      return []
+    }
+  }
+
+  /**
+   * Exporta datos a diferentes formatos
+   */
+  async exportData(sheetId: string | undefined, format: 'json' | 'csv', range?: string): Promise<any> {
+    try {
+      const data = await this.getSheetData(sheetId, range)
+
+      if (format === 'json') {
+        return {
+          success: true,
+          format: 'json',
+          data,
+        }
+      }
+
+      if (format === 'csv') {
+        // Convertir a CSV
+        if (data.length === 0) {
+          return { success: true, format: 'csv', data: '' }
+        }
+
+        const headers = Object.keys(data[0])
+        const csvRows = [headers.join(',')]
+
+        for (const row of data) {
+          const values = headers.map(header => {
+            const value = row[header]
+            // Escapar valores que contengan comas o comillas
+            const escaped = String(value || '').replace(/"/g, '""')
+            return `"${escaped}"`
+          })
+          csvRows.push(values.join(','))
+        }
+
+        return {
+          success: true,
+          format: 'csv',
+          data: csvRows.join('\n'),
+        }
+      }
+
+      return { success: false, message: 'Unsupported format' }
+    } catch (error) {
+      this.logger.error(`Error exporting data: ${error.message}`)
+      return { success: false, message: error.message }
+    }
   }
 }

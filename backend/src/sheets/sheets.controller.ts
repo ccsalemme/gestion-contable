@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Request, Query, Logger } from '@nestjs/common'
+import { Controller, Get, Put, Post, Param, Body, Request, Query, Logger } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { SheetsService } from './sheets.service'
 
@@ -48,5 +48,51 @@ export class SheetsController {
   async getSheetById(@Param('sheetId') sheetId: string, @Request() req: any) {
     this.logger.log(`getSheetById called with sheetId: ${sheetId}`)
     return this.sheetsService.getSheetData(sheetId)
+  }
+
+  @Put('update-cell')
+  @ApiOperation({ summary: 'Update a single cell in Google Sheets' })
+  async updateCell(
+    @Body() body: { sheetId: string; range: string; value: any },
+  ) {
+    this.logger.log(`Updating cell ${body.range} in sheet ${body.sheetId}`)
+    return this.sheetsService.updateCell(body.sheetId, body.range, body.value)
+  }
+
+  @Put('update-cells')
+  @ApiOperation({ summary: 'Update multiple cells in Google Sheets' })
+  async updateCells(
+    @Body() body: { sheetId: string; updates: Array<{range: string, value: any}> },
+  ) {
+    this.logger.log(`Batch updating ${body.updates.length} cells in sheet ${body.sheetId}`)
+    return this.sheetsService.updateCells(body.sheetId, body.updates)
+  }
+
+  @Post('export')
+  @ApiOperation({ summary: 'Export sheet data to different formats' })
+  async exportData(
+    @Body() body: { sheetId?: string; format: 'json' | 'csv'; range?: string },
+  ) {
+    this.logger.log(`Exporting sheet ${body.sheetId || 'default'} as ${body.format}`)
+    return this.sheetsService.exportData(body.sheetId, body.format, body.range)
+  }
+
+  @Get('metadata/:sheetId')
+  @ApiOperation({ summary: 'Get spreadsheet metadata (list of sheets/tabs)' })
+  async getSheetMetadata(@Param('sheetId') sheetId: string) {
+    this.logger.log(`Getting metadata for spreadsheet ${sheetId}`)
+    return this.sheetsService.getSheetMetadata(sheetId)
+  }
+
+  @Get('sheet-data/:sheetId/:sheetName')
+  @ApiOperation({ summary: 'Get data from a specific sheet/tab by name' })
+  @ApiQuery({ name: 'range', required: false })
+  async getSheetDataByName(
+    @Param('sheetId') sheetId: string,
+    @Param('sheetName') sheetName: string,
+    @Query('range') range?: string,
+  ) {
+    this.logger.log(`Getting data from sheet "${sheetName}" in spreadsheet ${sheetId}`)
+    return this.sheetsService.getSheetDataByName(sheetId, sheetName, range)
   }
 }

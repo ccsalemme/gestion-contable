@@ -52,6 +52,19 @@ export class SheetsService {
   }
 
   /**
+   * Convierte un índice de columna (0-based) a letra de columna (A, B, ..., Z, AA, AB, ...)
+   */
+  private columnIndexToLetter(index: number): string {
+    let label = ''
+    let temp = index
+    while (temp >= 0) {
+      label = String.fromCharCode(65 + (temp % 26)) + label
+      temp = Math.floor(temp / 26) - 1
+    }
+    return label
+  }
+
+  /**
    * Obtiene datos de Google Sheets
    */
   async getSheetData(sheetId?: string, range: string = 'A1:ZZ1000'): Promise<SheetRow[]> {
@@ -262,10 +275,25 @@ export class SheetsService {
         return []
       }
 
-      // Construir el rango con el nombre de la hoja
-      const fullRange = range 
-        ? `'${sheetName}'!${range}` 
-        : `'${sheetName}'!A1:ZZ1000`
+      // Si no se especifica un rango, obtener el metadata para determinar el tamaño real de la hoja
+      let fullRange: string
+      if (range) {
+        fullRange = `'${sheetName}'!${range}`
+      } else {
+        // Obtener metadata para saber cuántas columnas tiene la hoja
+        const metadata = await this.getSheetMetadata(spreadsheetId)
+        const sheetMeta = metadata.sheets.find(s => s.title === sheetName)
+        
+        if (sheetMeta && sheetMeta.columnCount) {
+          // Convertir el número de columnas a letra (A, B, ..., Z, AA, AB, ...)
+          const lastColumn = this.columnIndexToLetter(sheetMeta.columnCount - 1)
+          fullRange = `'${sheetName}'!A1:${lastColumn}1000`
+          this.logger.log(`Using dynamic range for ${sheetMeta.columnCount} columns: ${fullRange}`)
+        } else {
+          // Fallback al rango por defecto
+          fullRange = `'${sheetName}'!A1:ZZ1000`
+        }
+      }
 
       this.logger.log(`Fetching data from sheet "${sheetName}" with range ${fullRange}`)
 
@@ -280,8 +308,20 @@ export class SheetsService {
         return []
       }
 
-      // Primera fila como headers
-      const headers = rows[0]
+      // Primera fila como headers (generar headers automáticos para columnas sin nombre)
+      const firstRow = rows[0]
+      const headers: string[] = []
+      const maxColumns = firstRow.length
+      
+      for (let j = 0; j < maxColumns; j++) {
+        if (firstRow[j] && firstRow[j].toString().trim()) {
+          headers.push(firstRow[j].toString().trim())
+        } else {
+          // Generar header automático para columna vacía
+          headers.push(`Column ${this.columnIndexToLetter(j)}`)
+        }
+      }
+      
       const data: SheetRow[] = []
 
       // Convertir filas a objetos

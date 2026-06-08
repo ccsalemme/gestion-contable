@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { Save, Plus, Settings2, RefreshCw, ArrowLeft, Search, X } from "lucide-react";
-import { sheetsApi, SheetRow, SheetMetadata } from "@/api/sheets";
+import { sheetsApi, SheetRow } from "@/api/sheets";
 
-const COLS = 50; // Aumentado de 15 a 50 para soportar más columnas
-const ROWS = 100; // Aumentado de 50 a 100
+const COLS = 26; // Número por defecto de columnas
+const ROWS = 50;
 
 const getColumnLabel = (index: number) => {
   let label = "";
@@ -22,6 +22,7 @@ interface Sheet {
   data: Record<string, string>;
   headers: string[];
   sheetId?: number; // ID interno de Google Sheets
+  loaded?: boolean; // Indica si los datos ya fueron cargados
 }
 
 export default function SpreadsheetView() {
@@ -54,54 +55,27 @@ export default function SpreadsheetView() {
         return;
       }
 
-      // Primero, obtener metadata de las hojas
+      // Primero, obtener metadata de las hojas (rápido)
       const metadataResponse = await sheetsApi.getSheetMetadata(sheetId);
       if (metadataResponse.data.success && metadataResponse.data.sheets.length > 0) {
         const availableSheets = metadataResponse.data.sheets;
         
-        // Cargar datos de todas las hojas
-        const loadedSheets: Sheet[] = [];
+        // Crear estructura de hojas sin datos (lazy loading)
+        const loadedSheets: Sheet[] = availableSheets.map(sheetMeta => ({
+          id: sheetMeta.sheetId.toString(),
+          name: sheetMeta.title,
+          data: {},
+          headers: [],
+          sheetId: sheetMeta.sheetId,
+          loaded: false,
+        }));
+
+        setSheets(loadedSheets);
         
-        for (const sheetMeta of metadataResponse.data.sheets) {
-          try {
-            const response = await sheetsApi.getSheetDataByName(sheetId, sheetMeta.title);
-            const rows: SheetRow[] = response.data;
-
-            if (rows.length > 0) {
-              const headers = Object.keys(rows[0]);
-              const sheetData: Record<string, string> = {};
-              
-              // Headers en la primera fila
-              headers.forEach((header, colIndex) => {
-                sheetData[`0-${colIndex}`] = header;
-              });
-
-              // Datos en las filas siguientes
-              rows.forEach((row, rowIndex) => {
-                headers.forEach((header, colIndex) => {
-                  const value = row[header];
-                  sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
-                });
-              });
-
-              loadedSheets.push({
-                id: sheetMeta.sheetId.toString(),
-                name: sheetMeta.title,
-                data: sheetData,
-                headers,
-                sheetId: sheetMeta.sheetId,
-              });
-            }
-          } catch (err) {
-            console.error(`Error loading sheet "${sheetMeta.title}":`, err);
-          }
-        }
-
+        // Cargar datos solo de la primera hoja
         if (loadedSheets.length > 0) {
-          setSheets(loadedSheets);
+          await loadSheetDataByIndex(0, loadedSheets[0].name);
           setActiveSheetId(loadedSheets[0].id);
-        } else {
-          setError('No se pudieron cargar datos de las hojas');
         }
       } else {
         // Fallback: cargar datos sin metadata
@@ -128,7 +102,8 @@ export default function SpreadsheetView() {
               id: "1", 
               name: "Datos de Google Sheets", 
               data: sheetData,
-              headers 
+              headers,
+              loaded: true,
             }
           ]);
           setActiveSheetId("1");
@@ -139,6 +114,58 @@ export default function SpreadsheetView() {
       setError('Error al cargar datos de Google Sheets.');
       loadMockData();
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSheetDataByIndex = async (index: number, sheetName: string) => {
+    try {
+      if (!sheetId) return;
+
+      const response = await sheetsApi.getSheetDataByName(sheetId, sheetName);
+      const rows: SheetRow[] = response.data;
+
+      if (rows.length > 0) {
+        const headers = Object.keys(rows[0]);
+        const sheetData: Record<string, string> = {};
+        
+        // Headers en la primera fila
+        headers.forEach((header, colIndex) => {
+          sheetData[`0-${colIndex}`] = header;
+        });
+
+        // Datos en las filas siguientes
+        rows.forEach((row, rowIndex) => {
+          headers.forEach((header, colIndex) => {
+            const value = row[header];
+            sheetData[`${rowIndex + 1}-${colIndex}`] = value?.toString() || '';
+          });
+        });
+
+        // Actualizar solo la hoja específica
+        setSheets(prev => prev.map((sheet, idx) => 
+          idx === index 
+            ? { ...sheet, data: sheetData, headers, loaded: true }
+            : sheet
+        ));
+      }
+    } catch (err) {
+      console.error(`Error loading data for sheet "${sheetName}":`, err);
+      setError(`Error al cargar hoja "${sheetName}"`);
+    }
+  };
+
+  const handleSheetChange = async (newSheetId: string) => {
+    const sheetIndex = sheets.findIndex(s => s.id === newSheetId);
+    if (sheetIndex === -1) return;
+
+    setActiveSheetId(newSheetId);
+
+    // Si la hoja no está cargada, cargarla
+    const sheet = sheets[sheetIndex];
+    if (!sheet.loaded) {
+      setLoading(true);
+      await loadSheetDataByIndex(sheetIndex, sheet.name);
       setLoading(false);
     }
   };
@@ -156,13 +183,20 @@ export default function SpreadsheetView() {
         id: "1", 
         name: "Datos de Ejemplo", 
         data: mockData,
-        headers: ["ID", "Nombre", "Apellido", "Email", "Teléfono", "Estado", "Fecha de Registro"]
+        headers: ["ID", "Nombre", "Apellido", "Email", "Teléfono", "Estado", "Fecha de Registro"],
+        loaded: true,
       }
     ]);
+    setActiveSheetId("1");
   };
 
   const activeSheet = sheets.find(s => s.id === activeSheetId) || sheets[0];
   const activeData = activeSheet?.data || {};
+  const totalCols = activeSheet?.headers?.length || COLS;
+  // Usar el número real de columnas de cada hoja (dinámico)
+  const numCols = totalCols;
+  // Ancho mínimo de columna: permite scroll horizontal natural
+  const colWidthClass = "min-w-48"; // 192px mínimo - permite ~6 columnas visibles
 
   const handleCellChange = (row: number, col: number, value: string) => {
     setSheets(prev => prev.map(sheet => {
@@ -325,17 +359,17 @@ export default function SpreadsheetView() {
 
       {/* Spreadsheet Grid container */}
       <div className="flex-1 overflow-auto bg-gray-50 relative">
-        <table className="border-collapse bg-white whitespace-nowrap min-w-full" style={{ tableLayout: "fixed" }}>
+        <table className="border-collapse bg-white whitespace-nowrap">
           <thead>
             <tr>
               {/* Top-left corner */}
               <th className="sticky top-0 left-0 z-20 w-12 h-8 bg-gray-100 border-r border-b border-gray-300 shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)]"></th>
               
               {/* Column Headers */}
-              {Array.from({ length: COLS }).map((_, colIndex) => (
+              {Array.from({ length: numCols }).map((_, colIndex) => (
                 <th
                   key={`col-${colIndex}`}
-                  className="sticky top-0 z-10 w-32 h-8 bg-gray-100 border-r border-b border-gray-300 text-gray-600 font-medium text-xs text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] hover:bg-gray-200 transition-colors"
+                  className={`sticky top-0 z-10 ${colWidthClass} h-8 bg-gray-100 border-r border-b border-gray-300 text-gray-600 font-medium text-xs text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] hover:bg-gray-200 transition-colors`}
                 >
                   {getColumnLabel(colIndex)}
                 </th>
@@ -351,7 +385,7 @@ export default function SpreadsheetView() {
                 </td>
                 
                 {/* Cells */}
-                {Array.from({ length: COLS }).map((_, colIndex) => {
+                {Array.from({ length: numCols }).map((_, colIndex) => {
                   const cellId = `${rowIndex}-${colIndex}`;
                   const isActive = activeCell === cellId;
                   
@@ -421,7 +455,7 @@ export default function SpreadsheetView() {
               .map(sheet => (
                 <button
                   key={sheet.id}
-                  onClick={() => setActiveSheetId(sheet.id)}
+                  onClick={() => handleSheetChange(sheet.id)}
                   className={`px-4 py-1.5 text-sm font-medium whitespace-nowrap border-b-2 rounded-t-md transition-colors flex-shrink-0 ${
                     activeSheetId === sheet.id
                       ? "bg-white border-blue-600 text-blue-700 shadow-sm"
@@ -429,6 +463,9 @@ export default function SpreadsheetView() {
                   }`}
                 >
                   {sheet.name}
+                  {!sheet.loaded && activeSheetId !== sheet.id && (
+                    <span className="ml-1 text-xs text-gray-400">•</span>
+                  )}
                 </button>
               ))}
           </div>

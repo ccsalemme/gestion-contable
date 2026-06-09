@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { useAuth } from "./Root";
 import { 
@@ -7,8 +7,6 @@ import {
   Settings, 
   Folder, 
   DownloadCloud,
-  Bell, 
-  Search,
   Menu,
   ChevronRight
 } from "lucide-react";
@@ -18,6 +16,25 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userInitials, setUserInitials] = useState("U");
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserEmail(user.email || "");
+        // Obtener iniciales del email
+        const emailName = user.email.split('@')[0];
+        const initials = emailName.substring(0, 2).toUpperCase();
+        setUserInitials(initials);
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+      }
+    }
+  }, []);
 
   const getBreadcrumb = () => {
     switch (location.pathname) {
@@ -55,7 +72,10 @@ export default function AppLayout() {
             label="Hojas de Datos" 
             isOpen={sidebarOpen} 
             active={location.pathname === "/"} 
-            onClick={() => navigate("/")}
+            onClick={() => {
+              const defaultSheetId = import.meta.env.VITE_DEFAULT_SHEET_ID || '1jzGjT49CVcsaNau6okiZHlLt58cKlnB8qxVg2-jrJyE';
+              navigate(`/?sheetId=${defaultSheetId}`);
+            }}
           />
           <NavItem 
             icon={<Folder size={20} />} 
@@ -104,22 +124,44 @@ export default function AppLayout() {
 
           <div className="flex items-center space-x-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Buscar..." 
-                className="pl-9 pr-4 py-1.5 bg-gray-100 border-transparent rounded-full text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all w-64"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <button className="text-gray-400 hover:text-gray-600 relative">
-                <Bell size={20} />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              <button 
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:bg-blue-700 transition-colors"
+              >
+                {userInitials}
               </button>
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                JS
-              </div>
+              
+              {userMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-12 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                          {userInitials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{userEmail}</p>
+                          <p className="text-xs text-gray-500">Usuario</p>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        logout();
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
+                    >
+                      <LogOut size={16} />
+                      <span>Cerrar Sesión</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>

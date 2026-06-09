@@ -95,4 +95,16 @@ export class SheetsController {
     this.logger.log(`Getting data from sheet "${sheetName}" in spreadsheet ${sheetId}`)
     return this.sheetsService.getSheetDataByName(sheetId, sheetName, range)
   }
+
+  @Get('formatted/:sheetId/:sheetName')
+  @ApiOperation({ summary: 'Get data with complete formatting (colors, styles, etc.) from a specific sheet' })
+  @ApiQuery({ name: 'range', required: false })
+  async getSheetDataWithFormat(
+    @Param('sheetId') sheetId: string,
+    @Param('sheetName') sheetName: string,
+    @Query('range') range?: string,
+  ) {
+    this.logger.log(`Getting formatted data from sheet "${sheetName}" in spreadsheet ${sheetId}`)
+    return this.sheetsService.getSheetDataWithFormat(sheetId, sheetName, range)
+  }
 }

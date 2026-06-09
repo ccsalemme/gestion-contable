@@ -24,7 +24,8 @@ export default function Root() {
 
   const login = () => {
     setIsAuthenticated(true);
-    navigate("/");
+    const defaultSheetId = import.meta.env.VITE_DEFAULT_SHEET_ID || '1jzGjT49CVcsaNau6okiZHlLt58cKlnB8qxVg2-jrJyE';
+    navigate(`/?sheetId=${defaultSheetId}`);
   };
 
   const logout = () => {

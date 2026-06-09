@@ -21,14 +21,14 @@ export default function FilesView() {
       setFiles(response.data);
     } catch (err: any) {
       console.error('Error loading files:', err);
-      setError('Error al cargar archivos de Google Drive');
+      setError('Error al cargar archivos');
     } finally {
       setLoading(false);
     }
   };
 
   const openFile = (file: DriveFile) => {
-    // Si es una hoja de cálculo de Google, redirigir a SpreadsheetView con el ID
+    // Si es una hoja de cálculo, redirigir a SpreadsheetView con el ID
     if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
       navigate(`/?sheetId=${file.id}`);
     } else if (file.webViewLink) {
@@ -70,8 +70,8 @@ export default function FilesView() {
         
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Archivos de Google Drive</h1>
-            <p className="text-gray-500 mt-1">Archivos de tu carpeta compartida en Google Drive.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Archivos</h1>
+            <p className="text-gray-500 mt-1">Gestiona tus archivos y documentos.</p>
           </div>
           <div className="flex space-x-3">
             <button 

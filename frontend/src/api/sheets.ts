@@ -4,6 +4,46 @@ export interface SheetRow {
   [key: string]: string | number | boolean | null
 }
 
+export interface CellFormat {
+  backgroundColor?: { red?: number; green?: number; blue?: number; alpha?: number }
+  textFormat?: {
+    foregroundColor?: { red?: number; green?: number; blue?: number; alpha?: number }
+    fontFamily?: string
+    fontSize?: number
+    bold?: boolean
+    italic?: boolean
+    strikethrough?: boolean
+    underline?: boolean
+  }
+  horizontalAlignment?: string
+  verticalAlignment?: string
+  numberFormat?: {
+    type?: string
+    pattern?: string
+  }
+  borders?: {
+    top?: any
+    bottom?: any
+    left?: any
+    right?: any
+  }
+}
+
+export interface FormattedCell {
+  value: string | number | boolean | null
+  formattedValue?: string
+  format?: CellFormat
+  row: number
+  col: number
+}
+
+export interface SheetDataWithFormat {
+  cells: FormattedCell[]
+  headers: string[]
+  rowCount: number
+  columnCount: number
+}
+
 export interface SheetMetadata {
   sheetId: number;
   title: string;
@@ -42,5 +82,11 @@ export const sheetsApi = {
     const params: any = {}
     if (range) params.range = range
     return apiClient.get<SheetRow[]>(`/sheets/sheet-data/${sheetId}/${encodeURIComponent(sheetName)}`, { params })
+  },
+
+  getSheetDataWithFormat: (sheetId: string, sheetName: string, range?: string) => {
+    const params: any = {}
+    if (range) params.range = range
+    return apiClient.get<SheetDataWithFormat>(`/sheets/formatted/${sheetId}/${encodeURIComponent(sheetName)}`, { params })
   },
 }

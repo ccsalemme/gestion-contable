@@ -8,6 +8,46 @@ export interface SheetRow {
   [key: string]: string | number | boolean | null
 }
 
+export interface CellFormat {
+  backgroundColor?: { red?: number; green?: number; blue?: number; alpha?: number }
+  textFormat?: {
+    foregroundColor?: { red?: number; green?: number; blue?: number; alpha?: number }
+    fontFamily?: string
+    fontSize?: number
+    bold?: boolean
+    italic?: boolean
+    strikethrough?: boolean
+    underline?: boolean
+  }
+  horizontalAlignment?: string
+  verticalAlignment?: string
+  numberFormat?: {
+    type?: string
+    pattern?: string
+  }
+  borders?: {
+    top?: any
+    bottom?: any
+    left?: any
+    right?: any
+  }
+}
+
+export interface FormattedCell {
+  value: string | number | boolean | null
+  formattedValue?: string
+  format?: CellFormat
+  row: number
+  col: number
+}
+
+export interface SheetDataWithFormat {
+  cells: FormattedCell[]
+  headers: string[]
+  rowCount: number
+  columnCount: number
+}
+
 @Injectable()
 export class SheetsService {
   private readonly logger = new Logger(SheetsService.name)
@@ -282,7 +322,7 @@ export class SheetsService {
       } else {
         // Obtener metadata para saber cuántas columnas tiene la hoja
         const metadata = await this.getSheetMetadata(spreadsheetId)
-        const sheetMeta = metadata.sheets.find(s => s.title === sheetName)
+        const sheetMeta = metadata.sheets.find((s: any) => s.title === sheetName)
         
         if (sheetMeta && sheetMeta.columnCount) {
           // Convertir el número de columnas a letra (A, B, ..., Z, AA, AB, ...)
@@ -340,6 +380,152 @@ export class SheetsService {
     } catch (error) {
       this.logger.error(`Error fetching data from sheet "${sheetName}": ${error.message}`)
       return []
+    }
+  }
+
+  /**
+   * Obtiene datos con formato completo de Google Sheets (colores, estilos, etc.)
+   */
+  async getSheetDataWithFormat(spreadsheetId: string, sheetName: string, range?: string): Promise<SheetDataWithFormat> {
+    try {
+      if (!this.sheets) {
+        this.logger.warn('Google Sheets not configured')
+        return { cells: [], headers: [], rowCount: 0, columnCount: 0 }
+      }
+
+      // Determinar el rango
+      let fullRange: string
+      if (range) {
+        fullRange = `'${sheetName}'!${range}`
+      } else {
+        const metadata = await this.getSheetMetadata(spreadsheetId)
+        const sheetMeta = metadata.sheets.find((s: any) => s.title === sheetName)
+        
+        if (sheetMeta && sheetMeta.columnCount) {
+          const lastColumn = this.columnIndexToLetter(sheetMeta.columnCount - 1)
+          fullRange = `'${sheetName}'!A1:${lastColumn}${sheetMeta.rowCount || 1000}`
+          this.logger.log(`Using dynamic range: ${fullRange}`)
+        } else {
+          fullRange = `'${sheetName}'!A1:ZZ1000`
+        }
+      }
+
+      this.logger.log(`Fetching formatted data from sheet "${sheetName}"`)
+
+      // Obtener datos con formato completo
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        ranges: [fullRange],
+        includeGridData: true,
+        fields: 'sheets(data(rowData(values(formattedValue,userEnteredValue,effectiveFormat))))',
+      })
+
+      const sheet = response.data.sheets[0]
+      if (!sheet || !sheet.data || !sheet.data[0] || !sheet.data[0].rowData) {
+        this.logger.warn('No data found in sheet')
+        return { cells: [], headers: [], rowCount: 0, columnCount: 0 }
+      }
+
+      const rowData = sheet.data[0].rowData
+      const cells: FormattedCell[] = []
+      const headers: string[] = []
+      let maxColumns = 0
+
+      // Procesar todas las celdas
+      rowData.forEach((row: any, rowIndex: number) => {
+        if (!row.values) return
+
+        row.values.forEach((cell: any, colIndex: number) => {
+          maxColumns = Math.max(maxColumns, colIndex + 1)
+
+          // Extraer valor
+          let value: any = null
+          if (cell.formattedValue !== undefined) {
+            value = cell.formattedValue
+          } else if (cell.userEnteredValue) {
+            if (cell.userEnteredValue.numberValue !== undefined) {
+              value = cell.userEnteredValue.numberValue
+            } else if (cell.userEnteredValue.stringValue !== undefined) {
+              value = cell.userEnteredValue.stringValue
+            } else if (cell.userEnteredValue.boolValue !== undefined) {
+              value = cell.userEnteredValue.boolValue
+            }
+          }
+
+          // Extraer formato
+          const format: CellFormat = {}
+          if (cell.effectiveFormat) {
+            const ef = cell.effectiveFormat
+
+            // Colores de fondo
+            if (ef.backgroundColor) {
+              format.backgroundColor = ef.backgroundColor
+            }
+
+            // Formato de texto
+            if (ef.textFormat) {
+              format.textFormat = {
+                foregroundColor: ef.textFormat.foregroundColor,
+                fontFamily: ef.textFormat.fontFamily,
+                fontSize: ef.textFormat.fontSize,
+                bold: ef.textFormat.bold,
+                italic: ef.textFormat.italic,
+                strikethrough: ef.textFormat.strikethrough,
+                underline: ef.textFormat.underline,
+              }
+            }
+
+            // Alineación
+            if (ef.horizontalAlignment) {
+              format.horizontalAlignment = ef.horizontalAlignment
+            }
+            if (ef.verticalAlignment) {
+              format.verticalAlignment = ef.verticalAlignment
+            }
+
+            // Formato de números
+            if (ef.numberFormat) {
+              format.numberFormat = {
+                type: ef.numberFormat.type,
+                pattern: ef.numberFormat.pattern,
+              }
+            }
+
+            // Bordes
+            if (ef.borders) {
+              format.borders = ef.borders
+            }
+          }
+
+          // Construir celda formateada
+          const formattedCell: FormattedCell = {
+            value,
+            formattedValue: cell.formattedValue,
+            format: Object.keys(format).length > 0 ? format : undefined,
+            row: rowIndex,
+            col: colIndex,
+          }
+
+          cells.push(formattedCell)
+
+          // Guardar headers de la primera fila
+          if (rowIndex === 0) {
+            headers.push(value?.toString() || `Column ${this.columnIndexToLetter(colIndex)}`)
+          }
+        })
+      })
+
+      this.logger.log(`Retrieved ${rowData.length} rows with formatting from sheet "${sheetName}"`)
+      
+      return {
+        cells,
+        headers,
+        rowCount: rowData.length,
+        columnCount: maxColumns,
+      }
+    } catch (error) {
+      this.logger.error(`Error fetching formatted data from sheet "${sheetName}": ${error.message}`)
+      return { cells: [], headers: [], rowCount: 0, columnCount: 0 }
     }
   }
 

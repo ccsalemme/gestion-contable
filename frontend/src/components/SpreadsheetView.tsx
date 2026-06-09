@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import { Save, Plus, Settings2, RefreshCw, ArrowLeft, Search, X } from "lucide-react";
-import { sheetsApi, SheetRow } from "@/api/sheets";
+import { Save, RefreshCw, Search, X, Plus } from "lucide-react";
+import { sheetsApi, SheetRow, FormattedCell, CellFormat } from "@/api/sheets";
+import { cellFormatToCSS } from "@/utils/sheetFormat";
 
 const COLS = 26; // Número por defecto de columnas
 const ROWS = 50;
@@ -21,8 +22,9 @@ interface Sheet {
   name: string;
   data: Record<string, string>;
   headers: string[];
-  sheetId?: number; // ID interno de Google Sheets
+  sheetId?: number; // ID interno de la hoja
   loaded?: boolean; // Indica si los datos ya fueron cargados
+  cellFormats?: Map<string, CellFormat>; // Formatos de celdas por ID (row-col)
 }
 
 export default function SpreadsheetView() {
@@ -39,11 +41,35 @@ export default function SpreadsheetView() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Map<string, { range: string; value: any }>>(new Map());
   const [sheetSearchQuery, setSheetSearchQuery] = useState("");
+  
+  // Estados para dropdowns de menú
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [editMenuOpen, setEditMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [formatMenuOpen, setFormatMenuOpen] = useState(false);
+  
+  // Estados para funcionalidades
+  const [history, setHistory] = useState<Array<Record<string, string>>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [clipboard, setClipboard] = useState<{type: 'copy' | 'cut', data: string, cell: string} | null>(null);
+  const [zoom, setZoom] = useState(100);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
 
-  // Cargar datos desde Google Sheets al montar el componente o cuando cambia sheetId
+  // Cargar datos de las hojas al montar el componente o cuando cambia sheetId
   useEffect(() => {
     loadSheetData();
   }, [sheetId]);
+
+  // Inicializar historial cuando cambia la hoja activa
+  useEffect(() => {
+    const currentSheet = sheets.find(s => s.id === activeSheetId);
+    if (currentSheet && currentSheet.data) {
+      setHistory([{ ...currentSheet.data }]);
+      setHistoryIndex(0);
+    }
+  }, [activeSheetId, sheets.length]);
 
   const loadSheetData = async () => {
     setLoading(true);
@@ -100,7 +126,7 @@ export default function SpreadsheetView() {
           setSheets([
             { 
               id: "1", 
-              name: "Datos de Google Sheets", 
+              name: "Datos", 
               data: sheetData,
               headers,
               loaded: true,
@@ -111,7 +137,7 @@ export default function SpreadsheetView() {
       }
     } catch (err: any) {
       console.error('Error loading sheet data:', err);
-      setError('Error al cargar datos de Google Sheets.');
+      setError('Error al cargar datos.');
       loadMockData();
     } finally {
       setLoading(false);
@@ -122,6 +148,38 @@ export default function SpreadsheetView() {
     try {
       if (!sheetId) return;
 
+      // Intentar cargar con formato completo
+      try {
+        const formattedResponse = await sheetsApi.getSheetDataWithFormat(sheetId, sheetName);
+        const formattedData = formattedResponse.data;
+
+        if (formattedData.cells && formattedData.cells.length > 0) {
+          const sheetData: Record<string, string> = {};
+          const cellFormats = new Map<string, CellFormat>();
+
+          // Convertir las celdas formateadas a la estructura de datos
+          formattedData.cells.forEach((cell: FormattedCell) => {
+            const cellId = `${cell.row}-${cell.col}`;
+            sheetData[cellId] = cell.formattedValue || cell.value?.toString() || '';
+            
+            if (cell.format) {
+              cellFormats.set(cellId, cell.format);
+            }
+          });
+
+          // Actualizar la hoja con datos y formatos
+          setSheets(prev => prev.map((sheet, idx) => 
+            idx === index 
+              ? { ...sheet, data: sheetData, headers: formattedData.headers, loaded: true, cellFormats }
+              : sheet
+          ));
+          return;
+        }
+      } catch (formatErr) {
+        console.warn(`Could not load formatted data for "${sheetName}", falling back to basic data:`, formatErr);
+      }
+
+      // Fallback: cargar datos sin formato
       const response = await sheetsApi.getSheetDataByName(sheetId, sheetName);
       const rows: SheetRow[] = response.data;
 
@@ -199,6 +257,13 @@ export default function SpreadsheetView() {
   const colWidthClass = "min-w-48"; // 192px mínimo - permite ~6 columnas visibles
 
   const handleCellChange = (row: number, col: number, value: string) => {
+    // Guardar estado actual en el historial antes de cambiar
+    const currentSheet = sheets.find(s => s.id === activeSheetId);
+    if (currentSheet && historyIndex === history.length - 1) {
+      setHistory(prev => [...prev, { ...currentSheet.data }]);
+      setHistoryIndex(prev => prev + 1);
+    }
+
     setSheets(prev => prev.map(sheet => {
       if (sheet.id === activeSheetId) {
         return {
@@ -269,12 +334,170 @@ export default function SpreadsheetView() {
     setActiveSheetId(newId);
   };
 
+  // Funciones de Archivo
+  const handleNew = () => {
+    if (pendingChanges.size > 0) {
+      if (!confirm('Tienes cambios sin guardar. ¿Deseas continuar?')) return;
+    }
+    addSheet();
+    setFileMenuOpen(false);
+  };
+
+  const handleDownload = () => {
+    const activeSheet = sheets.find(s => s.id === activeSheetId);
+    if (!activeSheet) return;
+
+    // Convertir datos a CSV
+    let csv = '';
+    const maxRow = Math.max(...Object.keys(activeSheet.data).map(key => parseInt(key.split('-')[0])));
+    const maxCol = Math.max(...Object.keys(activeSheet.data).map(key => parseInt(key.split('-')[1])));
+
+    for (let row = 0; row <= maxRow; row++) {
+      const rowData = [];
+      for (let col = 0; col <= maxCol; col++) {
+        const value = activeSheet.data[`${row}-${col}`] || '';
+        rowData.push(`"${value.replace(/"/g, '""')}"`);
+      }
+      csv += rowData.join(',') + '\n';
+    }
+
+    // Descargar archivo
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeSheet.name}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setFileMenuOpen(false);
+  };
+
+  // Funciones de Editar
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const previousState = history[newIndex];
+      setSheets(prev => prev.map(sheet => 
+        sheet.id === activeSheetId ? { ...sheet, data: previousState } : sheet
+      ));
+    }
+    setEditMenuOpen(false);
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const nextState = history[newIndex];
+      setSheets(prev => prev.map(sheet => 
+        sheet.id === activeSheetId ? { ...sheet, data: nextState } : sheet
+      ));
+    }
+    setEditMenuOpen(false);
+  };
+
+  const handleCopy = () => {
+    if (activeCell) {
+      const activeSheet = sheets.find(s => s.id === activeSheetId);
+      if (activeSheet) {
+        const value = activeSheet.data[activeCell] || '';
+        setClipboard({ type: 'copy', data: value, cell: activeCell });
+        navigator.clipboard.writeText(value);
+      }
+    }
+    setEditMenuOpen(false);
+  };
+
+  const handleCut = () => {
+    if (activeCell) {
+      const activeSheet = sheets.find(s => s.id === activeSheetId);
+      if (activeSheet) {
+        const value = activeSheet.data[activeCell] || '';
+        setClipboard({ type: 'cut', data: value, cell: activeCell });
+        navigator.clipboard.writeText(value);
+        // Limpiar celda
+        const [row, col] = activeCell.split('-').map(Number);
+        handleCellChange(row, col, '');
+      }
+    }
+    setEditMenuOpen(false);
+  };
+
+  const handlePaste = async () => {
+    if (activeCell) {
+      try {
+        const text = await navigator.clipboard.readText();
+        const [row, col] = activeCell.split('-').map(Number);
+        handleCellChange(row, col, text);
+      } catch (err) {
+        console.error('Error al pegar:', err);
+      }
+    }
+    setEditMenuOpen(false);
+  };
+
+  const handleSearch = () => {
+    const term = prompt('Buscar en la hoja:');
+    if (!term) return;
+    
+    setSearchTerm(term);
+    const activeSheet = sheets.find(s => s.id === activeSheetId);
+    if (!activeSheet) return;
+
+    const results: string[] = [];
+    Object.entries(activeSheet.data).forEach(([key, value]) => {
+      if (value.toString().toLowerCase().includes(term.toLowerCase())) {
+        results.push(key);
+      }
+    });
+
+    setSearchResults(results);
+    setCurrentSearchIndex(0);
+    if (results.length > 0) {
+      setActiveCell(results[0]);
+    }
+    setEditMenuOpen(false);
+  };
+
+  // Funciones de Ver
+  const handleZoom100 = () => {
+    setZoom(100);
+    setViewMenuOpen(false);
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 10, 200));
+    setViewMenuOpen(false);
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 10, 50));
+    setViewMenuOpen(false);
+  };
+
+  const handleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+    setViewMenuOpen(false);
+  };
+
+  // Funciones de Formato
+  const handleBold = () => {
+    // Funcionalidad de formato requiere extensión del modelo de datos
+    alert('Funcionalidad de formato en desarrollo');
+    setFormatMenuOpen(false);
+  };
+
   if (!sheets.length && loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-gray-600">Cargando datos de Google Sheets...</p>
+          <p className="text-gray-600">Cargando datos...</p>
         </div>
       </div>
     );
@@ -285,20 +508,120 @@ export default function SpreadsheetView() {
       {/* Toolbar */}
       <div className="h-12 flex items-center justify-between px-6 border-b border-gray-200 bg-gray-50/50 shrink-0">
         <div className="flex items-center space-x-3">
-          {sheetId && (
-            <button 
-              onClick={() => navigate('/files')}
-              className="flex items-center space-x-1 px-3 py-1.5 hover:bg-gray-200 rounded-md transition-colors text-gray-700 text-sm font-medium"
-            >
-              <ArrowLeft size={14} />
-              <span>Archivos</span>
-            </button>
-          )}
           <div className="text-xs text-gray-600 flex space-x-1">
-            <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Archivo</button>
-            <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Editar</button>
-            <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Ver</button>
-            <button className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium">Formato</button>
+            {/* Menú Archivo */}
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setFileMenuOpen(!fileMenuOpen);
+                  setEditMenuOpen(false);
+                  setViewMenuOpen(false);
+                  setFormatMenuOpen(false);
+                }}
+                className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium"
+              >
+                Archivo
+              </button>
+              {fileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setFileMenuOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20">
+                    <button onClick={handleNew} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Nuevo</button>
+                    <button onClick={() => { navigate('/files'); setFileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Abrir</button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button onClick={() => { handleSave(); setFileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Guardar</button>
+                    <button onClick={handleDownload} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Descargar</button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Menú Editar */}
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setEditMenuOpen(!editMenuOpen);
+                  setFileMenuOpen(false);
+                  setViewMenuOpen(false);
+                  setFormatMenuOpen(false);
+                }}
+                className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium"
+              >
+                Editar
+              </button>
+              {editMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setEditMenuOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20">
+                    <button onClick={handleUndo} disabled={historyIndex <= 0} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Deshacer</button>
+                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Rehacer</button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button onClick={handleCut} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cortar</button>
+                    <button onClick={handleCopy} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Copiar</button>
+                    <button onClick={handlePaste} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Pegar</button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button onClick={handleSearch} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Buscar</button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Menú Ver */}
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setViewMenuOpen(!viewMenuOpen);
+                  setFileMenuOpen(false);
+                  setEditMenuOpen(false);
+                  setFormatMenuOpen(false);
+                }}
+                className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium"
+              >
+                Ver
+              </button>
+              {viewMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setViewMenuOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20">
+                    <button onClick={handleZoom100} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Zoom {zoom}%</button>
+                    <button onClick={handleZoomIn} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Aumentar zoom</button>
+                    <button onClick={handleZoomOut} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Reducir zoom</button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button onClick={handleFullscreen} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors">Pantalla completa</button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Menú Formato */}
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setFormatMenuOpen(!formatMenuOpen);
+                  setFileMenuOpen(false);
+                  setEditMenuOpen(false);
+                  setViewMenuOpen(false);
+                }}
+                className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium"
+              >
+                Formato
+              </button>
+              {formatMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setFormatMenuOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20">
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Negrita</button>
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cursiva</button>
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Subrayado</button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Tamaño de fuente</button>
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Color de texto</button>
+                    <button onClick={handleBold} disabled={!activeCell} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Color de fondo</button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button 
               className="hover:bg-gray-200 px-3 py-1.5 rounded-md transition-colors font-medium flex items-center space-x-1"
               onClick={loadSheetData}
@@ -321,10 +644,6 @@ export default function SpreadsheetView() {
               {pendingChanges.size} cambio{pendingChanges.size > 1 ? 's' : ''} sin guardar
             </span>
           )}
-          <button className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 rounded-md text-sm font-medium text-gray-700 transition-colors">
-            <Settings2 size={14} />
-            <span>Filtros</span>
-          </button>
           <button 
             onClick={handleSave}
             disabled={saving || pendingChanges.size === 0 || !sheetId}
@@ -358,7 +677,7 @@ export default function SpreadsheetView() {
       </div>
 
       {/* Spreadsheet Grid container */}
-      <div className="flex-1 overflow-auto bg-gray-50 relative">
+      <div className="flex-1 overflow-auto bg-gray-50 relative" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', width: `${100 / (zoom / 100)}%`, height: `${100 / (zoom / 100)}%` }}>
         <table className="border-collapse bg-white whitespace-nowrap">
           <thead>
             <tr>
@@ -388,18 +707,30 @@ export default function SpreadsheetView() {
                 {Array.from({ length: numCols }).map((_, colIndex) => {
                   const cellId = `${rowIndex}-${colIndex}`;
                   const isActive = activeCell === cellId;
+                  const cellFormat = activeSheet?.cellFormats?.get(cellId);
+                  const cellStyles = cellFormat ? cellFormatToCSS(cellFormat) : {};
                   
                   return (
                     <td
                       key={cellId}
-                      className={`h-8 border-r border-b border-gray-200 p-0 relative bg-white ${
+                      className={`h-8 border-r border-b border-gray-200 p-0 relative ${
                         isActive ? "outline outline-2 outline-blue-500 z-0 ring-4 ring-blue-500/20" : "hover:bg-blue-50/30"
                       }`}
+                      style={cellStyles}
                       onClick={() => setActiveCell(cellId)}
                     >
                       <input
                         type="text"
-                        className="w-full h-full px-2 outline-none bg-transparent text-sm text-gray-800"
+                        className="w-full h-full px-2 outline-none bg-transparent text-sm"
+                        style={{
+                          color: cellStyles.color || 'inherit',
+                          fontFamily: cellStyles.fontFamily || 'inherit',
+                          fontSize: cellStyles.fontSize || 'inherit',
+                          fontWeight: cellStyles.fontWeight || 'inherit',
+                          fontStyle: cellStyles.fontStyle || 'inherit',
+                          textDecoration: cellStyles.textDecoration || 'inherit',
+                          textAlign: cellStyles.textAlign || 'inherit',
+                        }}
                         value={activeData[cellId] || ""}
                         onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
                         onFocus={() => setActiveCell(cellId)}

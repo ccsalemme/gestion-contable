@@ -1,6 +1,10 @@
-import { Controller, Get, Put, Post, Param, Body, Request, Query, Logger } from '@nestjs/common'
+import { Controller, Get, Put, Post, Param, Body, Request, Query, Logger, UseGuards, HttpException, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { SheetsService } from './sheets.service'
+import { DriveService } from '../drive/drive.service'
+import { JwtAuthGuard } from '../guards/auth.guard'
+import { CreateMovementDto, MovementResponseDto } from '../dto/movement.dto'
+import { ConfigService } from '@nestjs/config'
 
 @ApiTags('Google Sheets')
 @ApiBearerAuth()
@@ -8,7 +12,11 @@ import { SheetsService } from './sheets.service'
 export class SheetsController {
   private readonly logger = new Logger(SheetsController.name)
 
-  constructor(private sheetsService: SheetsService) {}
+  constructor(
+    private sheetsService: SheetsService,
+    private driveService: DriveService,
+    private configService: ConfigService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get sheet data with optional sheetId and range' })
@@ -106,5 +114,65 @@ export class SheetsController {
   ) {
     this.logger.log(`Getting formatted data from sheet "${sheetName}" in spreadsheet ${sheetId}`)
     return this.sheetsService.getSheetDataWithFormat(sheetId, sheetName, range)
+  }
+
+  @Post('movements')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create a new financial movement entry' })
+  async createMovement(
+    @Body() movementDto: CreateMovementDto,
+  ): Promise<MovementResponseDto> {
+    try {
+      this.logger.log('Creating new financial movement')
+
+      // Get the spreadsheet file name from environment or use default
+      const fileName = this.configService.get<string>('GOOGLE_SHEET_MOVEMENTS_NAME') || 'Copia de Gyc (David) - Alex Finan'
+      
+      // Get the spreadsheet ID by name
+      const spreadsheetId = await this.driveService.getSpreadsheetIdByName(fileName)
+      
+      if (!spreadsheetId) {
+        throw new HttpException(
+          `Spreadsheet "${fileName}" not found in the configured Drive folder`,
+          HttpStatus.NOT_FOUND,
+        )
+      }
+
+      // Generate timestamp in the format: YYYY-MM-DD HH:mm:ss
+      const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19)
+
+      // Build the row data
+      const rowData = [
+        timestamp,
+        movementDto.monto,
+        movementDto.emisor,
+        movementDto.receptor,
+        movementDto.motivo,
+        movementDto.casoEspecial,
+        'Pendiente',
+      ]
+
+      // Append the row to the FORM_INPUT sheet
+      const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
+
+      if (!result.success) {
+        throw new HttpException(
+          result.message || 'Failed to create movement',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        )
+      }
+
+      this.logger.log(`Movement created successfully: ${result.appendedRange}`)
+      return result
+    } catch (error) {
+      this.logger.error(`Error creating movement: ${error.message}`)
+      if (error instanceof HttpException) {
+        throw error
+      }
+      throw new HttpException(
+        'Failed to create movement',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
   }
 }

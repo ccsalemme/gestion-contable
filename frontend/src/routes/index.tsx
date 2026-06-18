@@ -5,6 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import SpreadsheetView from "@/components/SpreadsheetView";
 import FilesView from "@/components/FilesView";
 import ExportView from "@/components/ExportView";
+import { MovementsPage } from "@/pages";
 
 export const router = createBrowserRouter([
   {
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
           { index: true, Component: SpreadsheetView },
           { path: "files", Component: FilesView },
           { path: "export", Component: ExportView },
+          { path: "movements", Component: MovementsPage },
         ],
       },
     ],

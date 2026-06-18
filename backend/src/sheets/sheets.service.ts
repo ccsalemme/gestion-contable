@@ -270,6 +270,41 @@ export class SheetsService {
   }
 
   /**
+   * Agrega una nueva fila al final de una hoja específica
+   */
+  async appendRow(spreadsheetId: string, sheetName: string, values: any[]): Promise<any> {
+    try {
+      if (!this.sheets) {
+        this.logger.warn('Google Sheets not configured')
+        return { success: false, message: 'Google Sheets not configured' }
+      }
+
+      const range = `${sheetName}!A:Z`
+      this.logger.log(`Appending row to sheet ${sheetName} in spreadsheet ${spreadsheetId}`)
+
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [values],
+        },
+      })
+
+      this.logger.log(`Row appended successfully: ${response.data.updates.updatedRange}`)
+      return {
+        success: true,
+        appendedRange: response.data.updates.updatedRange,
+        updatedCells: response.data.updates.updatedCells,
+      }
+    } catch (error) {
+      this.logger.error(`Error appending row: ${error.message}`)
+      return { success: false, message: error.message }
+    }
+  }
+
+  /**
    * Obtiene información sobre las pestañas/hojas del spreadsheet
    */
   async getSheetMetadata(sheetId?: string): Promise<any> {

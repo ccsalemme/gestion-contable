@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { Movement, MovementResponse } from '../types/movement'
 
 export interface SheetRow {
   [key: string]: string | number | boolean | null
@@ -89,4 +90,7 @@ export const sheetsApi = {
     if (range) params.range = range
     return apiClient.get<SheetDataWithFormat>(`/sheets/formatted/${sheetId}/${encodeURIComponent(sheetName)}`, { params })
   },
+
+  createMovement: (movement: Movement) =>
+    apiClient.post<MovementResponse>('/sheets/movements', movement),
 }

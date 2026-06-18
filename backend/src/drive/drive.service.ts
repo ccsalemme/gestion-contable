@@ -127,6 +127,40 @@ export class DriveService {
   }
 
   /**
+   * Busca un spreadsheet por nombre en la carpeta configurada
+   */
+  async getSpreadsheetIdByName(fileName: string, folderId?: string): Promise<string | null> {
+    try {
+      const folderIdToUse = folderId || this.configService.get<string>('GOOGLE_DRIVE_FOLDER_ID')
+      
+      if (!this.drive || !folderIdToUse) {
+        this.logger.warn('Google Drive not configured or folder ID missing')
+        return null
+      }
+
+      this.logger.log(`Searching for spreadsheet with name: ${fileName}`)
+
+      const response = await this.drive.files.list({
+        q: `'${folderIdToUse}' in parents and name='${fileName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+        fields: 'files(id, name)',
+        pageSize: 1,
+      })
+
+      if (response.data.files && response.data.files.length > 0) {
+        const fileId = response.data.files[0].id
+        this.logger.log(`Found spreadsheet: ${fileName} with ID: ${fileId}`)
+        return fileId
+      } else {
+        this.logger.warn(`Spreadsheet not found: ${fileName}`)
+        return null
+      }
+    } catch (error) {
+      this.logger.error(`Error searching for spreadsheet: ${error.message}`)
+      return null
+    }
+  }
+
+  /**
    * Formatea el tamaño del archivo
    */
   private formatFileSize(bytes: number): string {

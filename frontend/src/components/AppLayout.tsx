@@ -8,7 +8,8 @@ import {
   Folder, 
   DownloadCloud,
   Menu,
-  ChevronRight
+  ChevronRight,
+  ClipboardList
 } from "lucide-react";
 
 export default function AppLayout() {
@@ -42,6 +43,8 @@ export default function AppLayout() {
         return "Archivos";
       case "/export":
         return "Exportar Datos";
+      case "/movements":
+        return "Registro de Movimientos";
       case "/":
       default:
         return "Hoja de Datos";
@@ -90,6 +93,13 @@ export default function AppLayout() {
             isOpen={sidebarOpen} 
             active={location.pathname === "/export"} 
             onClick={() => navigate("/export")}
+          />
+          <NavItem 
+            icon={<ClipboardList size={20} />} 
+            label="Movimientos" 
+            isOpen={sidebarOpen} 
+            active={location.pathname === "/movements"} 
+            onClick={() => navigate("/movements")}
           />
         </nav>
 

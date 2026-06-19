@@ -1,13 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
+import { ConfigService } from '@nestjs/config'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private logger = new Logger(JwtStrategy.name)
 
-  constructor() {
-    const secret = process.env.JWT_SECRET
+  constructor(private configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET')
+    
+    console.log('🔑 JWT_SECRET loaded:', secret ? `[${secret.substring(0, 10)}...] (length: ${secret.length})` : 'NOT FOUND')
+    
     if (!secret) {
       throw new Error('JWT_SECRET environment variable is not set')
     }
@@ -17,15 +21,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       secretOrKey: secret,
     })
-    this.logger.log(`JWT Strategy initialized with secret (length: ${secret.length})`)
+    
+    this.logger.log(`✅ JWT Strategy initialized with secret`)
   }
 
   async validate(payload: any) {
-    this.logger.debug(`JWT payload validated:`, {
-      sub: payload.sub,
-      email: payload.email,
-      role: payload.role,
-    })
+    this.logger.log(`🔍 JWT payload validated: ${payload.email}`)
     return { userId: payload.sub, email: payload.email, role: payload.role }
   }
 }

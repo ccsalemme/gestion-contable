@@ -6,9 +6,9 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { token } = useAuthStore()
+  const token = useAuthStore((state) => state.token)
 
-  if (token === null) {
+  if (!token) {
     return <Navigate to="/login" replace />
   }
 

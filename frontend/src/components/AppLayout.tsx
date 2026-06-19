@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
-import { useAuth } from "./Root";
+import { useAuthStore } from "@/store/auth";
 import { 
   LogOut, 
   FileSpreadsheet, 
@@ -9,33 +9,31 @@ import {
   DownloadCloud,
   Menu,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  X,
+  ChevronLeft,
+  ChevronsLeft
 } from "lucide-react";
 
 export default function AppLayout() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  
+  // Sidebar starts closed on mobile, open on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Initialize based on screen size
+    return window.innerWidth >= 768;
+  });
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
-  const [userInitials, setUserInitials] = useState("U");
 
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setUserEmail(user.email || "");
-        // Obtener iniciales del email
-        const emailName = user.email.split('@')[0];
-        const initials = emailName.substring(0, 2).toUpperCase();
-        setUserInitials(initials);
-      } catch (e) {
-        console.error('Error parsing user data:', e);
-      }
-    }
-  }, []);
+  const userEmail = user?.email || "";
+  const userInitials = useMemo(() => {
+    if (!user?.email) return "U";
+    const emailName = user.email.split('@')[0];
+    return emailName.substring(0, 2).toUpperCase();
+  }, [user?.email]);
 
   const getBreadcrumb = () => {
     switch (location.pathname) {
@@ -53,19 +51,41 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside 
         className={`${
-          sidebarOpen ? "w-64" : "w-16"
-        } bg-gray-900 text-gray-300 flex flex-col transition-all duration-300 ease-in-out z-20 shrink-0`}
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } ${
+          sidebarOpen ? "md:w-64" : "md:w-16"
+        } md:translate-x-0 fixed md:relative w-64 bg-gray-900 text-gray-300 flex flex-col transition-all duration-300 ease-in-out z-40 md:z-20 h-screen`}
       >
         <div className="h-14 flex items-center justify-between px-4 border-b border-gray-800">
           {sidebarOpen && <span className="font-semibold text-white text-lg tracking-wide">DataPro</span>}
+          
+          {/* Mobile close button */}
+          <button 
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors md:hidden"
+            aria-label="Cerrar menú"
+          >
+            <X size={20} />
+          </button>
+          
+          {/* Desktop collapse/expand button */}
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors"
+            className="hidden md:block p-1.5 hover:bg-gray-800 rounded text-gray-400 hover:text-white transition-colors ml-auto"
+            aria-label={sidebarOpen ? "Contraer menú" : "Expandir menú"}
           >
-            <Menu size={20} />
+            {sidebarOpen ? <ChevronsLeft size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
@@ -73,33 +93,44 @@ export default function AppLayout() {
           <NavItem 
             icon={<FileSpreadsheet size={20} />} 
             label="Hojas de Datos" 
-            isOpen={sidebarOpen} 
+            isOpen={sidebarOpen}
             active={location.pathname === "/"} 
             onClick={() => {
               const defaultSheetId = import.meta.env.VITE_DEFAULT_SHEET_ID || '1jzGjT49CVcsaNau6okiZHlLt58cKlnB8qxVg2-jrJyE';
               navigate(`/?sheetId=${defaultSheetId}`);
+              // Close on mobile after navigation
+              if (window.innerWidth < 768) setSidebarOpen(false);
             }}
           />
           <NavItem 
             icon={<Folder size={20} />} 
             label="Archivos" 
-            isOpen={sidebarOpen} 
+            isOpen={sidebarOpen}
             active={location.pathname === "/files"} 
-            onClick={() => navigate("/files")}
+            onClick={() => {
+              navigate("/files");
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
           />
           <NavItem 
             icon={<DownloadCloud size={20} />} 
             label="Exportar" 
-            isOpen={sidebarOpen} 
+            isOpen={sidebarOpen}
             active={location.pathname === "/export"} 
-            onClick={() => navigate("/export")}
+            onClick={() => {
+              navigate("/export");
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
           />
           <NavItem 
             icon={<ClipboardList size={20} />} 
             label="Movimientos" 
-            isOpen={sidebarOpen} 
+            isOpen={sidebarOpen}
             active={location.pathname === "/movements"} 
-            onClick={() => navigate("/movements")}
+            onClick={() => {
+              navigate("/movements");
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
           />
         </nav>
 
@@ -107,12 +138,15 @@ export default function AppLayout() {
           <NavItem 
             icon={<Settings size={20} />} 
             label="Configuración" 
-            isOpen={sidebarOpen} 
+            isOpen={sidebarOpen}
             active={false}
             onClick={() => {}}
           />
           <button 
-            onClick={logout}
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
             className={`w-full flex items-center ${sidebarOpen ? "justify-start px-3" : "justify-center"} py-2 mt-2 text-red-400 hover:bg-gray-800 hover:text-red-300 rounded-lg transition-colors`}
           >
             <LogOut size={20} />
@@ -122,14 +156,24 @@ export default function AppLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white shadow-[-4px_0_15px_rgba(0,0,0,0.05)] z-10 rounded-l-2xl border-l border-gray-200 overflow-hidden my-2 mr-2">
+      <main className="flex-1 flex flex-col min-w-0 bg-white shadow-none md:shadow-[-4px_0_15px_rgba(0,0,0,0.05)] z-10 md:rounded-l-2xl md:border-l border-gray-200 overflow-hidden md:my-2 md:mr-2">
         
         {/* Top Navbar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white shrink-0">
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <span>Workspace</span>
-            <ChevronRight size={14} />
-            <span className="font-semibold text-gray-900">{getBreadcrumb()}</span>
+        <header className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 bg-white shrink-0">
+          <div className="flex items-center space-x-3">
+            {/* Mobile menu button */}
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 hover:bg-gray-100 rounded text-gray-600 transition-colors"
+            >
+              <Menu size={22} />
+            </button>
+            
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <span className="hidden sm:inline">Workspace</span>
+              <ChevronRight size={14} className="hidden sm:inline" />
+              <span className="font-semibold text-gray-900">{getBreadcrumb()}</span>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
@@ -163,6 +207,7 @@ export default function AppLayout() {
                       onClick={() => {
                         setUserMenuOpen(false);
                         logout();
+                        navigate("/login");
                       }}
                       className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
                     >
@@ -188,13 +233,13 @@ export default function AppLayout() {
 function NavItem({ 
   icon, 
   label, 
-  isOpen, 
+  isOpen,
   active = false,
   onClick
 }: { 
   icon: React.ReactNode; 
   label: string; 
-  isOpen: boolean; 
+  isOpen: boolean;
   active?: boolean;
   onClick: () => void;
 }) {
@@ -206,8 +251,8 @@ function NavItem({
           ? "bg-blue-600 text-white" 
           : "text-gray-400 hover:bg-gray-800 hover:text-white"
       }`}
+      style={{ width: "calc(100% - 16px)" }}
       title={!isOpen ? label : undefined}
-      style={{ width: isOpen ? "calc(100% - 16px)" : "calc(100% - 16px)" }}
     >
       <div className="shrink-0">{icon}</div>
       {isOpen && <span className="ml-3 text-sm font-medium">{label}</span>}

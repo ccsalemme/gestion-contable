@@ -12,7 +12,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { setUser, setToken } = useAuthStore()
+  const setAuth = useAuthStore((state) => state.setAuth)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,8 +23,7 @@ export function LoginPage() {
       const response = await authApi.login({ email, password })
       const { user, token } = response.data
 
-      setUser(user)
-      setToken(token)
+      setAuth(user, token)
       navigate('/')
     } catch (err: any) {
       const errorMessage =

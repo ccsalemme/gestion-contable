@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useAuth } from "./Root";
+import { useNavigate } from "react-router";
 import { Lock, Mail } from "lucide-react";
 import { authApi } from "@/api/auth";
+import { useAuthStore } from "@/store/auth";
 
 export default function Login() {
-  const { login } = useAuth();
+  const navigate = useNavigate();
+  const setAuth = useAuthStore((state) => state.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,11 +21,12 @@ export default function Login() {
       const response = await authApi.login({ email, password });
       const { token, user } = response.data;
       
-      // Guardar token en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      // Guardar en el store (que automáticamente persiste en localStorage)
+      setAuth(user, token);
       
-      login();
+      // Navegar a la página principal
+      const defaultSheetId = import.meta.env.VITE_DEFAULT_SHEET_ID || '1jzGjT49CVcsaNau6okiZHlLt58cKlnB8qxVg2-jrJyE';
+      navigate(`/?sheetId=${defaultSheetId}`);
     } catch (err: any) {
       console.error('Login error:', err);
       const errorMessage = err.response?.data?.message || 'Error al iniciar sesión. Verifica tus credenciales.';

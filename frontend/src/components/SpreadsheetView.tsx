@@ -657,13 +657,13 @@ export default function SpreadsheetView() {
 
       {/* Spreadsheet Formula Bar */}
       <div className="flex items-center border-b border-gray-200 px-4 py-2 bg-white shrink-0">
-        <div className="w-12 text-center text-gray-500 font-mono text-xs border-r border-gray-200 pr-3 mr-3 font-semibold">
+        <div className="w-14 text-center text-gray-500 font-mono text-sm border-r border-gray-200 pr-3 mr-3 font-semibold">
           {activeCell || ""}
         </div>
-        <div className="text-gray-400 font-serif italic pr-3 border-r border-gray-200 mr-3 text-sm">fx</div>
+        <div className="text-gray-400 font-serif italic pr-3 border-r border-gray-200 mr-3 text-base">fx</div>
         <input
           type="text"
-          className="flex-1 outline-none px-2 py-1 text-sm font-sans bg-transparent"
+          className="flex-1 outline-none px-2 py-1 text-base font-sans bg-transparent"
           placeholder="Selecciona una celda para editar su contenido..."
           value={activeCell ? activeData[activeCell] || "" : ""}
           onChange={(e) => {
@@ -682,13 +682,13 @@ export default function SpreadsheetView() {
           <thead>
             <tr>
               {/* Top-left corner */}
-              <th className="sticky top-0 left-0 z-20 w-12 h-8 bg-gray-100 border-r border-b border-gray-300 shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)]"></th>
+              <th className="sticky top-0 left-0 z-20 w-12 h-10 bg-gray-100 border-r border-b border-gray-300 shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)]"></th>
               
               {/* Column Headers */}
               {Array.from({ length: numCols }).map((_, colIndex) => (
                 <th
                   key={`col-${colIndex}`}
-                  className={`sticky top-0 z-10 ${colWidthClass} h-8 bg-gray-100 border-r border-b border-gray-300 text-gray-600 font-medium text-xs text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] hover:bg-gray-200 transition-colors`}
+                  className={`sticky top-0 z-10 ${colWidthClass} h-10 bg-gray-100 border-r border-b border-gray-300 text-gray-600 font-medium text-sm text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] hover:bg-gray-200 transition-colors`}
                 >
                   {getColumnLabel(colIndex)}
                 </th>
@@ -699,7 +699,7 @@ export default function SpreadsheetView() {
             {Array.from({ length: ROWS }).map((_, rowIndex) => (
               <tr key={`row-${rowIndex}`} className="group">
                 {/* Row Header */}
-                <td className="sticky left-0 z-10 w-12 h-8 bg-gray-100 border-r border-b border-gray-300 text-gray-500 font-medium text-xs text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] group-hover:bg-gray-200 group-hover:text-gray-800 transition-colors">
+                <td className="sticky left-0 z-10 w-12 h-10 bg-gray-100 border-r border-b border-gray-300 text-gray-500 font-medium text-sm text-center select-none shadow-[inset_-1px_-1px_0_rgba(209,213,219,1)] group-hover:bg-gray-200 group-hover:text-gray-800 transition-colors">
                   {rowIndex + 1}
                 </td>
                 
@@ -713,7 +713,7 @@ export default function SpreadsheetView() {
                   return (
                     <td
                       key={cellId}
-                      className={`h-8 border-r border-b border-gray-200 p-0 relative ${
+                      className={`h-10 border-r border-b border-gray-200 p-0 relative ${
                         isActive ? "outline outline-2 outline-blue-500 z-0 ring-4 ring-blue-500/20" : "hover:bg-blue-50/30"
                       }`}
                       style={cellStyles}
@@ -721,7 +721,7 @@ export default function SpreadsheetView() {
                     >
                       <input
                         type="text"
-                        className="w-full h-full px-2 outline-none bg-transparent text-sm"
+                        className="w-full h-full px-2 outline-none bg-transparent text-base"
                         style={{
                           color: cellStyles.color || 'inherit',
                           fontFamily: cellStyles.fontFamily || 'inherit',

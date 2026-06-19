@@ -1,49 +1,28 @@
 import { Outlet, useNavigate, useLocation } from "react-router";
-import { useEffect, useState, createContext, useContext } from "react";
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+import { useEffect } from "react";
+import { useAuthStore } from "@/store/auth";
 
 export default function Root() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const token = useAuthStore((state) => state.token);
+  const initialize = useAuthStore((state) => state.initialize);
 
-  const login = () => {
-    setIsAuthenticated(true);
-    const defaultSheetId = import.meta.env.VITE_DEFAULT_SHEET_ID || '1jzGjT49CVcsaNau6okiZHlLt58cKlnB8qxVg2-jrJyE';
-    navigate(`/?sheetId=${defaultSheetId}`);
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-    navigate("/login");
-  };
-
+  // Inicializar el store al montar
   useEffect(() => {
-    if (!isAuthenticated && location.pathname !== "/login") {
+    initialize();
+  }, [initialize]);
+
+  // Redirigir a login si no hay token
+  useEffect(() => {
+    if (!token && location.pathname !== "/login") {
       navigate("/login");
     }
-  }, [isAuthenticated, location.pathname, navigate]);
+  }, [token, location.pathname, navigate]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
-        <Outlet />
-      </div>
-    </AuthContext.Provider>
+    <div className="w-full h-screen bg-gray-50 flex flex-col font-sans">
+      <Outlet />
+    </div>
   );
 }

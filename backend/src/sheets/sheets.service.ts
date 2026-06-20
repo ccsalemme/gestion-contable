@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { google } from 'googleapis'
 import * as fs from 'fs'
 import * as path from 'path'
+import axios from 'axios'
 
 export interface SheetRow {
   [key: string]: string | number | boolean | null
@@ -293,6 +294,12 @@ export class SheetsService {
       })
 
       this.logger.log(`Row appended successfully: ${response.data.updates.updatedRange}`)
+
+      // Llamar al Google Apps Script Web App para procesar la fila inmediatamente
+      if (sheetName === 'FORM_INPUT') {
+        this.triggerGoogleAppsScriptWebApp()
+      }
+
       return {
         success: true,
         appendedRange: response.data.updates.updatedRange,
@@ -301,6 +308,40 @@ export class SheetsService {
     } catch (error) {
       this.logger.error(`Error appending row: ${error.message}`)
       return { success: false, message: error.message }
+    }
+  }
+
+  /**
+   * Llama al Google Apps Script Web App para procesar nuevas filas
+   */
+  private async triggerGoogleAppsScriptWebApp(): Promise<void> {
+    try {
+      const webAppUrl = this.configService.get<string>('GOOGLE_APPS_SCRIPT_WEB_APP_URL') || 
+        'https://script.google.com/macros/s/AKfycbzpno3f1pMjIRmdSzSbMqlsCHoaBPMBsegkQv8f614h5J-Usr3XaJNtwVRDK9FhIcfK/exec'
+
+      this.logger.log('Triggering Google Apps Script Web App for processing')
+
+      const response = await axios.post(
+        webAppUrl,
+        { trigger: 'formSubmitted' },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000, // 30 segundos de timeout
+        }
+      )
+
+      this.logger.log(`Web App triggered successfully: ${response.status}`)
+      if (response.data) {
+        this.logger.log(`Web App response: ${JSON.stringify(response.data)}`)
+      }
+    } catch (error) {
+      // Registrar el error pero no fallar la operación principal
+      this.logger.warn(`Failed to trigger Google Apps Script Web App: ${error.message}`)
+      if (error.response) {
+        this.logger.warn(`Web App error response: ${error.response.status} - ${JSON.stringify(error.response.data)}`)
+      }
     }
   }
 

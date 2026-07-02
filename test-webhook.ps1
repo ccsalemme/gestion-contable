@@ -22,7 +22,7 @@ function Get-AuthToken {
     try {
         $response = Invoke-RestMethod -Uri "$baseUrl/api/auth/login" -Method POST -Body $loginData -ContentType "application/json"
         Write-Host "   Token obtenido exitosamente" -ForegroundColor Green
-        return $response.access_token
+        return $response.token
     }
     catch {
         Write-Host "   Error al obtener token: $_" -ForegroundColor Red

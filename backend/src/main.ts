@@ -6,6 +6,20 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter'
 import { LoggingInterceptor } from './interceptors/logging.interceptor'
 
 async function bootstrap() {
+  // ⚠️ Validación de seguridad: No permitir desactivación de SSL en producción
+  if (process.env.NODE_ENV === 'production' && process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+    console.error('❌ ERROR DE SEGURIDAD: NODE_TLS_REJECT_UNAUTHORIZED=0 no está permitido en producción')
+    console.error('   Por favor, elimine esta variable del archivo .env de producción')
+    process.exit(1)
+  }
+  
+  // Mostrar advertencia si SSL está desactivado en desarrollo
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
+    console.warn('⚠️  ADVERTENCIA: Validación de certificados SSL desactivada (NODE_TLS_REJECT_UNAUTHORIZED=0)')
+    console.warn('   Esto es aceptable SOLO en desarrollo local')
+    console.warn('   NUNCA usar esta configuración en producción')
+  }
+
   const app = await NestFactory.create(AppModule)
 
   // Global prefix

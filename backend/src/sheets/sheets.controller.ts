@@ -124,6 +124,7 @@ export class SheetsController {
   ): Promise<MovementResponseDto> {
     try {
       this.logger.log('Creating new financial movement')
+      this.logger.log(`Type: ${movementDto.tipoOperacion}, Currency: ${movementDto.moneda}`)
 
       // Get the spreadsheet file name from environment or use default
       const fileName = this.configService.get<string>('GOOGLE_SHEET_MOVEMENTS_NAME') || 'Copia de Gyc (David) - Alex Finan'
@@ -140,30 +141,121 @@ export class SheetsController {
 
       // Generate timestamp in the format: YYYY-MM-DD HH:mm:ss
       const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19)
-
-      // Build the row data
-      const rowData = [
-        timestamp,
-        movementDto.monto,
-        movementDto.emisor,
-        movementDto.receptor,
-        movementDto.motivo,
-        movementDto.casoEspecial,
-        'Pendiente',
-      ]
-
-      // Append the row to the FORM_INPUT sheet
-      const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
-
-      if (!result.success) {
-        throw new HttpException(
-          result.message || 'Failed to create movement',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        )
+      
+      const results: any[] = []
+      
+      // Build rows based on operation type
+      // Estructura de columnas FORM_INPUT:
+      // [Timestamp, TipoOperacion, Moneda, Monto, Contraparte, Costo, Motivo, EstadoTransaccion, UsaSaldoActual, CasoEspecial, Estado]
+      
+      if (movementDto.tipoOperacion === 'Solo Compra' && movementDto.compra) {
+        const rowData = [
+          timestamp,
+          'Compra',
+          movementDto.moneda,
+          movementDto.compra.monto,
+          movementDto.compra.contraparte,
+          movementDto.compra.costo,
+          movementDto.motivo,
+          movementDto.estadoTransaccion || 'Sin Estado',
+          'N/A',
+          movementDto.casoEspecial,
+          'Pendiente',
+        ]
+        
+        const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
+        if (!result.success) {
+          throw new HttpException(
+            result.message || 'Failed to create movement',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          )
+        }
+        results.push(result)
+      }
+      
+      else if (movementDto.tipoOperacion === 'Solo Venta' && movementDto.venta) {
+        const rowData = [
+          timestamp,
+          'Venta',
+          movementDto.moneda,
+          movementDto.venta.monto,
+          movementDto.venta.contraparte,
+          movementDto.venta.costo,
+          movementDto.motivo,
+          movementDto.estadoTransaccion || 'Sin Estado',
+          movementDto.venta.usaSaldoActual ? 'Sí' : 'No',
+          movementDto.casoEspecial,
+          'Pendiente',
+        ]
+        
+        const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
+        if (!result.success) {
+          throw new HttpException(
+            result.message || 'Failed to create movement',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          )
+        }
+        results.push(result)
+      }
+      
+      else if (movementDto.tipoOperacion === 'Compra y Venta Vinculadas' && movementDto.compra && movementDto.venta) {
+        // Primera fila: Compra
+        const rowDataCompra = [
+          timestamp,
+          'Compra (Vinculada)',
+          movementDto.moneda,
+          movementDto.compra.monto,
+          movementDto.compra.contraparte,
+          movementDto.compra.costo,
+          movementDto.motivo,
+          movementDto.estadoTransaccion || 'Sin Estado',
+          'N/A',
+          movementDto.casoEspecial,
+          'Pendiente',
+        ]
+        
+        const resultCompra = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowDataCompra)
+        if (!resultCompra.success) {
+          throw new HttpException(
+            resultCompra.message || 'Failed to create purchase',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          )
+        }
+        results.push(resultCompra)
+        
+        // Segunda fila: Venta
+        const rowDataVenta = [
+          timestamp,
+          'Venta (Vinculada)',
+          movementDto.moneda,
+          movementDto.venta.monto,
+          movementDto.venta.contraparte,
+          movementDto.venta.costo,
+          movementDto.motivo,
+          movementDto.estadoTransaccion || 'Sin Estado',
+          movementDto.venta.usaSaldoActual ? 'Sí' : 'No',
+          movementDto.casoEspecial,
+          'Pendiente',
+        ]
+        
+        const resultVenta = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowDataVenta)
+        if (!resultVenta.success) {
+          throw new HttpException(
+            resultVenta.message || 'Failed to create sale',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          )
+        }
+        results.push(resultVenta)
       }
 
-      this.logger.log(`Movement created successfully: ${result.appendedRange}`)
-      return result
+      const appendedRanges = results.map(r => r.appendedRange).join(', ')
+      this.logger.log(`Movement(s) created successfully: ${appendedRanges}`)
+      
+      return {
+        success: true,
+        appendedRange: appendedRanges,
+        message: `${results.length} row(s) added successfully`,
+      }
     } catch (error) {
       this.logger.error(`Error creating movement: ${error.message}`)
       if (error instanceof HttpException) {
@@ -174,5 +266,13 @@ export class SheetsController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }
+  }
+
+  @Post('test-webhook')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Test Google Apps Script webhook manually (debugging only)' })
+  async testWebhook(): Promise<any> {
+    this.logger.log('🧪 Manual webhook test requested')
+    return this.sheetsService.testWebAppWebhook()
   }
 }

@@ -319,7 +319,13 @@ export class SheetsService {
       const webAppUrl = this.configService.get<string>('GOOGLE_APPS_SCRIPT_WEB_APP_URL') || 
         'https://script.google.com/macros/s/AKfycbzpno3f1pMjIRmdSzSbMqlsCHoaBPMBsegkQv8f614h5J-Usr3XaJNtwVRDK9FhIcfK/exec'
 
-      this.logger.log('Triggering Google Apps Script Web App for processing')
+      this.logger.log('========================================')
+      this.logger.log('🚀 TRIGGERING GOOGLE APPS SCRIPT WEB APP')
+      this.logger.log(`📍 URL: ${webAppUrl}`)
+      this.logger.log(`📦 Payload: { trigger: "formSubmitted" }`)
+      this.logger.log('========================================')
+
+      const startTime = Date.now()
 
       const response = await axios.post(
         webAppUrl,
@@ -332,17 +338,37 @@ export class SheetsService {
         }
       )
 
-      this.logger.log(`Web App triggered successfully: ${response.status}`)
-      if (response.data) {
-        this.logger.log(`Web App response: ${JSON.stringify(response.data)}`)
-      }
+      const duration = Date.now() - startTime
+
+      this.logger.log('========================================')
+      this.logger.log(`✅ WEB APP RESPONSE SUCCESS`)
+      this.logger.log(`⏱️  Duration: ${duration}ms`)
+      this.logger.log(`📊 Status: ${response.status}`)
+      this.logger.log(`📄 Response: ${JSON.stringify(response.data, null, 2)}`)
+      this.logger.log('========================================')
     } catch (error) {
       // Registrar el error pero no fallar la operación principal
-      this.logger.warn(`Failed to trigger Google Apps Script Web App: ${error.message}`)
+      this.logger.error('========================================')
+      this.logger.error('❌ WEB APP CALL FAILED')
+      this.logger.error(`Error message: ${error.message}`)
       if (error.response) {
-        this.logger.warn(`Web App error response: ${error.response.status} - ${JSON.stringify(error.response.data)}`)
+        this.logger.error(`Status: ${error.response.status}`)
+        this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`)
       }
+      if (error.code) {
+        this.logger.error(`Error code: ${error.code}`)
+      }
+      this.logger.error('========================================')
     }
+  }
+
+  /**
+   * Método público para probar el webhook manualmente (solo para debugging)
+   */
+  async testWebAppWebhook(): Promise<any> {
+    this.logger.log('🧪 MANUAL TEST: Calling Web App webhook...')
+    await this.triggerGoogleAppsScriptWebApp()
+    return { message: 'Webhook test completed. Check logs for details.' }
   }
 
   /**

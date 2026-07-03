@@ -65,18 +65,78 @@ function Test-Webhook {
 }
 
 # Función para crear una operación de prueba
-function Test-CreateMovement {
+function Test-CreateMovements {
     param([string]$authToken)
     
     Write-Host ""
-    Write-Host "Paso 3: Creando una operacion de prueba..." -ForegroundColor Yellow
+    Write-Host "Paso 3: Creando operaciones de prueba (3 operaciones)..." -ForegroundColor Yellow
     
     $headers = @{
         "Authorization" = "Bearer $authToken"
         "Content-Type" = "application/json"
     }
 
-    $movementData = @{
+    # Operacion 1: Compra y Venta Vinculadas
+    Write-Host "   [1/3] Creando Compra y Venta Vinculadas..." -ForegroundColor Gray
+    $movementVinculada = @{
+        tipoOperacion = "Compra y Venta Vinculadas"
+        moneda = "USD"
+        motivo = "Cable"
+        casoEspecial = $false
+        estadoTransaccion = "Completada"
+        compra = @{
+            monto = 1000
+            contraparte = "Proveedor Test"
+            costo = 1.01
+        }
+        venta = @{
+            monto = 1000
+            contraparte = "Cliente Test"
+            costo = 1.02
+            usaSaldoActual = $false
+        }
+    } | ConvertTo-Json
+
+    try {
+        $response1 = Invoke-RestMethod -Uri "$baseUrl/api/sheets/movements" -Method POST -Headers $headers -Body $movementVinculada
+        Write-Host "      OK: Compra-Venta Vinculadas creadas" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "      ERROR: $_" -ForegroundColor Red
+        return $false
+    }
+
+    Start-Sleep -Seconds 1
+
+    # Operacion 2: Liquidacion
+    Write-Host "   [2/3] Creando Liquidacion..." -ForegroundColor Gray
+    $movementLiquidacion = @{
+        tipoOperacion = "Solo Compra"
+        moneda = "USD"
+        motivo = "Liquidacion"
+        casoEspecial = $true
+        estadoTransaccion = "En Proceso"
+        compra = @{
+            monto = 500
+            contraparte = "Proveedor Liquidacion"
+            costo = 1.005
+        }
+    } | ConvertTo-Json
+
+    try {
+        $response2 = Invoke-RestMethod -Uri "$baseUrl/api/sheets/movements" -Method POST -Headers $headers -Body $movementLiquidacion
+        Write-Host "      OK: Liquidacion creada" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "      ERROR: $_" -ForegroundColor Red
+        return $false
+    }
+
+    Start-Sleep -Seconds 1
+
+    # Operacion 3: Solo Compra (la original)
+    Write-Host "   [3/3] Creando Solo Compra..." -ForegroundColor Gray
+    $movementCompra = @{
         tipoOperacion = "Solo Compra"
         moneda = "USD"
         motivo = "Cable"
@@ -90,22 +150,23 @@ function Test-CreateMovement {
     } | ConvertTo-Json
 
     try {
-        Write-Host "   Enviando operacion..." -ForegroundColor Gray
-        $response = Invoke-RestMethod -Uri "$baseUrl/api/sheets/movements" -Method POST -Headers $headers -Body $movementData
-        
-        Write-Host "   Operacion creada exitosamente" -ForegroundColor Green
-        Write-Host "      Rango: $($response.appendedRange)" -ForegroundColor White
-        Write-Host ""
-        Write-Host "   Revisa los logs del backend para ver:" -ForegroundColor Cyan
-        Write-Host "      1. Si se llamo al webhook automaticamente" -ForegroundColor White
-        Write-Host "      2. La respuesta del Web App de Google" -ForegroundColor White
-        
-        return $true
+        $response3 = Invoke-RestMethod -Uri "$baseUrl/api/sheets/movements" -Method POST -Headers $headers -Body $movementCompra
+        Write-Host "      OK: Solo Compra creada" -ForegroundColor Green
     }
     catch {
-        Write-Host "   Error al crear operacion: $_" -ForegroundColor Red
+        Write-Host "      ERROR: $_" -ForegroundColor Red
         return $false
     }
+
+    Write-Host ""
+    Write-Host "   Operaciones creadas exitosamente (3 operaciones)" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "   Revisa los logs del backend para ver:" -ForegroundColor Cyan
+    Write-Host "      1. Si se llamo al webhook automaticamente" -ForegroundColor White
+    Write-Host "      2. La respuesta del Web App de Google" -ForegroundColor White
+    Write-Host "      3. El procesamiento de las 3 operaciones" -ForegroundColor White
+    
+    return $true
 }
 
 # EJECUCIÓN DEL SCRIPT
@@ -126,8 +187,8 @@ if (-not $token) {
 $webhookSuccess = Test-Webhook -authToken $token
 Start-Sleep -Seconds 2
 
-# Paso 3: Crear operación de prueba
-$movementSuccess = Test-CreateMovement -authToken $token
+# Paso 3: Crear operaciones de prueba
+$movementSuccess = Test-CreateMovements -authToken $token
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan
@@ -136,7 +197,7 @@ Write-Host "================================================" -ForegroundColor C
 Write-Host ""
 Write-Host "Token obtenido: SI" -ForegroundColor $(if ($token) { "Green" } else { "Red" })
 Write-Host "Webhook manual: $(if ($webhookSuccess) { 'SI' } else { 'NO' })" -ForegroundColor $(if ($webhookSuccess) { "Green" } else { "Red" })
-Write-Host "Operacion creada: $(if ($movementSuccess) { 'SI' } else { 'NO' })" -ForegroundColor $(if ($movementSuccess) { "Green" } else { "Red" })
+Write-Host "Operaciones creadas: $(if ($movementSuccess) { 'SI (3)' } else { 'NO' })" -ForegroundColor $(if ($movementSuccess) { "Green" } else { "Red" })
 Write-Host ""
 Write-Host "PROXIMOS PASOS:" -ForegroundColor Cyan
 Write-Host ""

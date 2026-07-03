@@ -31,16 +31,16 @@
  *       - Buscar fila pareja (mismo timestamp, tipo complementario)
  *       - Combinar ambas en 1 solo bloque:
  *         Fila 1: [Cliente, '', '', '', '', '', '']
- *         Fila 2: [Monto, '', CostoCompra, CostoVenta, '', Proveedor, Motivo]
+ *         Fila 2: [Monto, '', Monto*CostoCompra, Monto*CostoVenta, '', Proveedor, Motivo]
  *       - Marcar ambas filas como "Procesado"
  *    
  *    b) Si es "Solo Compra":
  *       - Fila 1: [Proveedor, '', '', '', '', '', '']
- *       - Fila 2: [Monto, '', CostoCompra, '', '', '', Motivo]
+ *       - Fila 2: [Monto, '', Monto*CostoCompra, '', '', '', Motivo]
  *    
  *    c) Si es "Solo Venta":
  *       - Fila 1: [Cliente, '', '', '', '', '', '']
- *       - Fila 2: [Monto, '', '', CostoVenta, '', '', Motivo]
+ *       - Fila 2: [Monto, '', '', Monto*CostoVenta, '', '', Motivo]
  * 
  * COLORES:
  * --------
@@ -220,6 +220,8 @@ function procesarFormulariosPendientesAutomatico() {
       return;
     }
     
+    Logger.log("Buscando filas pendientes en FORM_INPUT...");
+    
     // Leer todas las filas de datos (ahora 11 columnas A-K)
     const range = sheet.getRange(2, 1, lastRow - 1, 11);
     const values = range.getValues();
@@ -231,21 +233,65 @@ function procesarFormulariosPendientesAutomatico() {
       const estado = values[i][10]; // Columna K (Estado)
       
       if (estado === "Pendiente") {
-        Logger.log("Procesando fila pendiente: " + row);
+        Logger.log("==== Procesando fila pendiente: " + row + " ====");
         
-        const fakeEvent = {
-          source: ss,
-          range: sheet.getRange(row, 1)
-        };
-        
-        procesarFormulario(fakeEvent);
-        procesados++;
+        try {
+          // Extraer datos de la fila
+          const timestamp = values[i][0];        // Columna A
+          const tipoOperacion = values[i][1];    // Columna B
+          const moneda = values[i][2];           // Columna C
+          const monto = values[i][3];            // Columna D
+          const contraparte = values[i][4];      // Columna E
+          const costo = values[i][5];            // Columna F
+          const motivo = values[i][6];           // Columna G
+          const estadoTransaccion = values[i][7]; // Columna H
+          const usaSaldoActual = values[i][8];   // Columna I
+          const casoEspecial = values[i][9];     // Columna J
+          
+          Logger.log("Datos: tipo=" + tipoOperacion + ", monto=" + monto + ", motivo=" + motivo);
+          
+          // Validar datos requeridos
+          if (!timestamp || !monto || !contraparte) {
+            Logger.log("ERROR: Faltan datos requeridos en la fila " + row);
+            continue;
+          }
+          
+          // Convertir timestamp a formato dd/MM
+          const fecha = new Date(timestamp);
+          const dia = Utilities.formatDate(fecha, ss.getSpreadsheetTimeZone(), "dd/MM");
+          
+          Logger.log("Fecha calculada: " + dia);
+          
+          // Crear hoja si no existe
+          crearHojaSiNoExiste(ss, dia);
+          
+          // Determinar si es liquidación
+          if (motivo === "Liquidación") {
+            Logger.log("Es liquidación - escribiendo en tabla J-M");
+            escribirLiquidacion(ss, dia, row, sheet, tipoOperacion, monto, contraparte, estadoTransaccion, casoEspecial, timestamp);
+          } else {
+            // Verificar si es operación vinculada
+            if (tipoOperacion === "Compra (Vinculada)" || tipoOperacion === "Venta (Vinculada)") {
+              Logger.log("Es operación vinculada - buscando pareja...");
+              procesarOperacionVinculada(ss, sheet, dia, row, timestamp, tipoOperacion, monto, contraparte, costo, motivo, estadoTransaccion, casoEspecial);
+            } else {
+              Logger.log("Es operación simple - escribiendo en tabla A-G");
+              escribirOperacionSimple(ss, dia, tipoOperacion, monto, contraparte, costo, motivo, estadoTransaccion, casoEspecial);
+              // Actualizar estado a "Procesado"
+              sheet.getRange(row, 11).setValue("Procesado");
+            }
+          }
+          
+          procesados++;
+          Logger.log("Fila " + row + " procesada exitosamente");
+          
+        } catch (error) {
+          Logger.log("ERROR procesando fila " + row + ": " + error);
+        }
       }
     }
     
-    if (procesados > 0) {
-      Logger.log("Procesados " + procesados + " formularios pendientes automáticamente");
-    }
+    Logger.log("==== RESUMEN: Procesados " + procesados + " formularios ====");
     
   } catch (error) {
     Logger.log("ERROR procesarFormulariosPendientesAutomatico: " + error);
@@ -852,6 +898,7 @@ function procesarFormularioSubmit(e) {
 
 /**
  * Crea una hoja de fecha (dd/MM) si no existe
+ * Si la crea, agrega encabezados en la fila 1
  */
 function crearHojaSiNoExiste(ss, nombreHoja) {
   let hoja = ss.getSheetByName(nombreHoja);
@@ -859,7 +906,16 @@ function crearHojaSiNoExiste(ss, nombreHoja) {
   if (!hoja) {
     Logger.log("La hoja '" + nombreHoja + "' no existe. Creándola...");
     hoja = ss.insertSheet(nombreHoja);
-    Logger.log("Hoja '" + nombreHoja + "' creada exitosamente.");
+    
+    // Agregar encabezados en la fila 1
+    hoja.getRange(1, 3).setValue("Nos deben (+)");      // C1
+    hoja.getRange(1, 4).setValue("Le debemos (-)");     // D1
+    hoja.getRange(1, 7).setValue("Motivo");             // G1
+    hoja.getRange(1, 10).setValue("Liquidaciones");     // J1
+    hoja.getRange(1, 11).setValue("De parte de");       // K1
+    hoja.getRange(1, 12).setValue("A");                 // L1
+    
+    Logger.log("Hoja '" + nombreHoja + "' creada con encabezados.");
   } else {
     Logger.log("La hoja '" + nombreHoja + "' ya existe.");
   }
@@ -885,9 +941,9 @@ function escribirEnHojaDia(ss, nombreHoja, receptor, monto, emisor, motivo, caso
     // Encontrar la última fila con datos
     let ultimaFila = hoja.getLastRow();
     
-    // Si la hoja está vacía, empezar desde la fila 1
-    if (ultimaFila === 0) {
-      ultimaFila = 1;
+    // Si la hoja tiene solo encabezados (fila 1), empezar en fila 3
+    if (ultimaFila === 0 || ultimaFila === 1) {
+      ultimaFila = 3;
     } else {
       // Agregar después de la última fila, dejando una fila en blanco
       ultimaFila += 2;
@@ -950,8 +1006,8 @@ function escribirLiquidacion(ss, nombreHoja, rowFormInput, sheetFormInput, tipoO
     
     // Encontrar la última fila con datos
     let ultimaFila = hoja.getLastRow();
-    if (ultimaFila === 0) {
-      ultimaFila = 1;
+    if (ultimaFila === 0 || ultimaFila === 1) {
+      ultimaFila = 3; // Si es hoja nueva con encabezados, empezar en fila 3
     } else {
       ultimaFila += 1; // Siguiente fila disponible
     }
@@ -1007,7 +1063,7 @@ function escribirLiquidacion(ss, nombreHoja, rowFormInput, sheetFormInput, tipoO
     
     Logger.log("Liquidación escrita: Monto=" + monto + ", Vendedor=" + vendedor + ", Comprador=" + comprador);
     
-    // Aplicar colores según estado
+    // Aplicar colores según estado (solo columnas J-L)
     const rangoLiquidacion = hoja.getRange(ultimaFila, 10, 1, 3); // J-L
     aplicarColorEstado(rangoLiquidacion, estadoTransaccion, casoEspecial);
     
@@ -1021,6 +1077,10 @@ function escribirLiquidacion(ss, nombreHoja, rowFormInput, sheetFormInput, tipoO
         sheetFormInput.getRange(pareja.row, 11).setValue("Procesado");
       }
     }
+    
+    // Recalcular saldos automáticamente después de escribir la liquidación
+    Logger.log("Recalculando saldos para la hoja: " + nombreHoja);
+    recalcularSaldos(nombreHoja);
     
   } catch (error) {
     Logger.log("ERROR escribirLiquidacion: " + error);
@@ -1176,7 +1236,7 @@ function escribirOperacionSimple(ss, nombreHoja, tipoOperacion, monto, contrapar
  * Escribe un bloque de transacción en la hoja del día (tabla principal A-G)
  * Formato de 2 filas:
  *   Fila 1: [Comprador, '', '', '', '', '', '']
- *   Fila 2: [Monto, '', CostoCompra, CostoVenta, '', Vendedor, Motivo]
+ *   Fila 2: [Monto, '', Monto*CostoCompra, Monto*CostoVenta, '', Vendedor, Motivo]
  */
 function escribirBloqueEnHojaDia(ss, nombreHoja, nombreComprador, nombreVendedor, monto, costoCompra, costoVenta, motivo, estadoTransaccion, casoEspecial) {
   try {
@@ -1190,9 +1250,9 @@ function escribirBloqueEnHojaDia(ss, nombreHoja, nombreComprador, nombreVendedor
     // Encontrar la última fila con datos
     let ultimaFila = hoja.getLastRow();
     
-    // Si la hoja está vacía, empezar desde la fila 1
-    if (ultimaFila === 0) {
-      ultimaFila = 1;
+    // Si la hoja tiene solo encabezados (fila 1), empezar en fila 3
+    if (ultimaFila === 0 || ultimaFila === 1) {
+      ultimaFila = 3;
     } else {
       // Agregar después de la última fila, dejando una fila en blanco
       ultimaFila += 2;
@@ -1211,18 +1271,26 @@ function escribirBloqueEnHojaDia(ss, nombreHoja, nombreComprador, nombreVendedor
     const fila1 = [nombreComprador || '', '', '', '', '', '', ''];
     hoja.getRange(ultimaFila, 1, 1, 7).setValues([fila1]);
     
-    // Fila 2: [Monto, '', CostoCompra, CostoVenta, '', Vendedor, Motivo]
-    const fila2 = [monto, '', costoCompra || '', costoVenta || '', '', nombreVendedor || '', motivoFinal];
+    // Calcular monto con costo aplicado (monto * costo)
+    const montoConCostoCompra = costoCompra ? monto * costoCompra : '';
+    const montoConCostoVenta = costoVenta ? monto * costoVenta : '';
+    
+    // Fila 2: [Monto, '', Monto*CostoCompra, Monto*CostoVenta, '', Vendedor, Motivo]
+    const fila2 = [monto, '', montoConCostoCompra, montoConCostoVenta, '', nombreVendedor || '', motivoFinal];
     hoja.getRange(ultimaFila + 1, 1, 1, 7).setValues([fila2]);
     
     Logger.log("Bloque escrito: Fila " + ultimaFila + ": [" + nombreComprador + "]");
-    Logger.log("               Fila " + (ultimaFila + 1) + ": [" + monto + ", '', " + costoCompra + ", " + costoVenta + ", '', " + nombreVendedor + ", " + motivoFinal + "]");
+    Logger.log("               Fila " + (ultimaFila + 1) + ": [" + monto + ", '', " + montoConCostoCompra + ", " + montoConCostoVenta + ", '', " + nombreVendedor + ", " + motivoFinal + "]");
     
-    // Aplicar colores según estado (sobre todo el bloque A-G, 2 filas)
-    const rangoBloque = hoja.getRange(ultimaFila, 1, 2, 7); // A-G, 2 filas
+    // Aplicar colores según estado (columnas A-F, 2 filas - SIN columna G)
+    const rangoBloque = hoja.getRange(ultimaFila, 1, 2, 6); // A-F, 2 filas (sin G)
     aplicarColorEstado(rangoBloque, estadoTransaccion, casoEspecial);
     
     Logger.log("Bloque escrito exitosamente en hoja '" + nombreHoja + "'");
+    
+    // Recalcular saldos automáticamente después de escribir el bloque
+    Logger.log("Recalculando saldos para la hoja: " + nombreHoja);
+    recalcularSaldos(nombreHoja);
     
   } catch (error) {
     Logger.log("ERROR escribirBloqueEnHojaDia: " + error);

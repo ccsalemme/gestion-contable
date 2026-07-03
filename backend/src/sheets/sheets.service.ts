@@ -61,21 +61,31 @@ export class SheetsService {
 
   private async initializeGoogleSheets() {
     try {
+      this.logger.log('🔧 Iniciando configuración de Google Sheets...')
+      
       const keyPath = this.configService.get<string>('GOOGLE_SHEETS_PRIVATE_KEY_PATH')
       
       if (!keyPath) {
-        this.logger.warn('GOOGLE_SHEETS_PRIVATE_KEY_PATH not configured')
+        this.logger.warn('⚠️ GOOGLE_SHEETS_PRIVATE_KEY_PATH not configured')
         return
       }
+      
+      this.logger.log(`📁 Ruta de credenciales: ${keyPath}`)
       
       const fullPath = path.join(process.cwd(), keyPath)
       
+      this.logger.log(`📂 Ruta completa: ${fullPath}`)
+      
       if (!fs.existsSync(fullPath)) {
-        this.logger.warn(`Google Sheets credentials not found at ${fullPath}`)
+        this.logger.warn(`⚠️ Google Sheets credentials not found at ${fullPath}`)
         return
       }
 
+      this.logger.log('📄 Archivo de credenciales encontrado, leyendo...')
+      
       const credentials = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+      
+      this.logger.log('🔐 Creando autenticación de Google...')
       
       this.auth = new google.auth.GoogleAuth({
         credentials,
@@ -85,10 +95,15 @@ export class SheetsService {
         ],
       })
 
+      this.logger.log('📊 Inicializando cliente de Sheets API...')
+      
       this.sheets = google.sheets({ version: 'v4', auth: this.auth })
-      this.logger.log('Google Sheets API initialized successfully')
+      
+      this.logger.log('✅ Google Sheets API initialized successfully')
+      this.logger.log(`🔍 Estado final: this.sheets=${this.sheets ? 'OK' : 'NULL'}, this.auth=${this.auth ? 'OK' : 'NULL'}`)
     } catch (error) {
-      this.logger.error(`Failed to initialize Google Sheets: ${error.message}`)
+      this.logger.error(`❌ Failed to initialize Google Sheets: ${error.message}`)
+      this.logger.error(`Stack: ${error.stack}`)
     }
   }
 
@@ -275,10 +290,16 @@ export class SheetsService {
    */
   async appendRow(spreadsheetId: string, sheetName: string, values: any[]): Promise<any> {
     try {
+      this.logger.log(`🔍 appendRow llamado: spreadsheetId=${spreadsheetId}, sheetName=${sheetName}`)
+      this.logger.log(`📊 Valores a escribir: ${JSON.stringify(values)}`)
+      
       if (!this.sheets) {
-        this.logger.warn('Google Sheets not configured')
+        this.logger.error('❌ Google Sheets NO está configurado (this.sheets es null/undefined)')
+        this.logger.log(`🔧 Estado de auth: ${this.auth ? 'inicializado' : 'NO inicializado'}`)
         return { success: false, message: 'Google Sheets not configured' }
       }
+      
+      this.logger.log('✅ Google Sheets está configurado, procediendo a escribir...')
 
       const range = `${sheetName}!A:Z`
       this.logger.log(`Appending row to sheet ${sheetName} in spreadsheet ${spreadsheetId}`)
@@ -307,6 +328,7 @@ export class SheetsService {
       }
     } catch (error) {
       this.logger.error(`Error appending row: ${error.message}`)
+      this.logger.error(`Stack trace: ${error.stack}`)
       return { success: false, message: error.message }
     }
   }

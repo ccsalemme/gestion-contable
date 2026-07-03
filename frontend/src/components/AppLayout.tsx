@@ -50,7 +50,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50 font-sans">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div 
@@ -68,7 +68,7 @@ export default function AppLayout() {
         } md:translate-x-0 fixed md:relative w-64 bg-gray-900 text-gray-300 flex flex-col transition-all duration-300 ease-in-out z-40 md:z-20 h-screen`}
       >
         <div className="h-14 flex items-center justify-between px-4 border-b border-gray-800">
-          {sidebarOpen && <span className="font-semibold text-white text-lg tracking-wide">DataPro</span>}
+          {sidebarOpen && <span className="font-semibold text-white text-lg tracking-wide invisible"></span>}
           
           {/* Mobile close button */}
           <button 
@@ -156,7 +156,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-white shadow-none md:shadow-[-4px_0_15px_rgba(0,0,0,0.05)] z-10 md:rounded-l-2xl md:border-l border-gray-200 overflow-hidden md:my-2 md:mr-2">
+      <main className="flex-1 flex flex-col min-w-0 bg-white shadow-none md:shadow-[-4px_0_15px_rgba(0,0,0,0.05)] z-10 md:rounded-l-2xl md:border-l border-gray-200 overflow-y-auto md:my-2 md:mr-2">
         
         {/* Top Navbar */}
         <header className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-gray-200 bg-white shrink-0">

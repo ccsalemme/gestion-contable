@@ -83,7 +83,7 @@ export function MovementsPage() {
   const mostrarVenta = tipoOperacion === TipoOperacion.SOLO_VENTA || tipoOperacion === TipoOperacion.COMPRA_VENTA_VINCULADAS
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 p-4 py-8">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -187,9 +187,8 @@ export function MovementsPage() {
           {/* Sección de Compra */}
           {mostrarCompra && (
             <div className="border-2 border-green-200 rounded-lg p-6 bg-green-50">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">C</span>
-                Datos de Compra
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Datos de compra
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -269,9 +268,8 @@ export function MovementsPage() {
           {/* Sección de Venta */}
           {mostrarVenta && (
             <div className="border-2 border-orange-200 rounded-lg p-6 bg-orange-50">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-2">V</span>
-                Datos de Venta
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Datos de venta
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

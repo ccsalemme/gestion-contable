@@ -129,10 +129,15 @@ export class SheetsController {
       // Get the spreadsheet file name from environment or use default
       const fileName = this.configService.get<string>('GOOGLE_SHEET_MOVEMENTS_NAME') || 'Copia de Gyc (David) - Alex Finan'
       
+      this.logger.log(`🔍 Buscando archivo: ${fileName}`)
+      
       // Get the spreadsheet ID by name
       const spreadsheetId = await this.driveService.getSpreadsheetIdByName(fileName)
       
+      this.logger.log(`📋 Spreadsheet ID obtenido: ${spreadsheetId}`)
+      
       if (!spreadsheetId) {
+        this.logger.error(`❌ No se encontró el archivo "${fileName}"`)
         throw new HttpException(
           `Spreadsheet "${fileName}" not found in the configured Drive folder`,
           HttpStatus.NOT_FOUND,
@@ -163,7 +168,12 @@ export class SheetsController {
           'Pendiente',
         ]
         
+        this.logger.log(`📝 Escribiendo fila (Solo Compra): ${JSON.stringify(rowData)}`)
+        
         const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
+        
+        this.logger.log(`✅ Resultado de appendRow: ${JSON.stringify(result)}`)
+        
         if (!result.success) {
           throw new HttpException(
             result.message || 'Failed to create movement',
@@ -188,7 +198,12 @@ export class SheetsController {
           'Pendiente',
         ]
         
+        this.logger.log(`📝 Escribiendo fila (Solo Venta): ${JSON.stringify(rowData)}`)
+        
         const result = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowData)
+        
+        this.logger.log(`✅ Resultado de appendRow: ${JSON.stringify(result)}`)
+        
         if (!result.success) {
           throw new HttpException(
             result.message || 'Failed to create movement',
@@ -214,7 +229,12 @@ export class SheetsController {
           'Pendiente',
         ]
         
+        this.logger.log(`📝 Escribiendo fila 1/2 (Compra Vinculada): ${JSON.stringify(rowDataCompra)}`)
+        
         const resultCompra = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowDataCompra)
+        
+        this.logger.log(`✅ Resultado de appendRow (Compra): ${JSON.stringify(resultCompra)}`)
+        
         if (!resultCompra.success) {
           throw new HttpException(
             resultCompra.message || 'Failed to create purchase',
@@ -238,7 +258,12 @@ export class SheetsController {
           'Pendiente',
         ]
         
+        this.logger.log(`📝 Escribiendo fila 2/2 (Venta Vinculada): ${JSON.stringify(rowDataVenta)}`)
+        
         const resultVenta = await this.sheetsService.appendRow(spreadsheetId, 'FORM_INPUT', rowDataVenta)
+        
+        this.logger.log(`✅ Resultado de appendRow (Venta): ${JSON.stringify(resultVenta)}`)
+        
         if (!resultVenta.success) {
           throw new HttpException(
             resultVenta.message || 'Failed to create sale',

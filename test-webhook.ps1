@@ -106,14 +106,14 @@ function Test-CreateMovements {
         return $false
     }
 
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
 
     # Operacion 2: Liquidacion
     Write-Host "   [2/3] Creando Liquidacion..." -ForegroundColor Gray
     $movementLiquidacion = @{
         tipoOperacion = "Solo Compra"
         moneda = "USD"
-        motivo = "Liquidacion"
+        motivo = "Liquidación"
         casoEspecial = $true
         estadoTransaccion = "En Proceso"
         compra = @{
@@ -132,7 +132,7 @@ function Test-CreateMovements {
         return $false
     }
 
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
 
     # Operacion 3: Solo Compra (la original)
     Write-Host "   [3/3] Creando Solo Compra..." -ForegroundColor Gray

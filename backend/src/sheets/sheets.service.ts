@@ -334,7 +334,7 @@ export class SheetsService {
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 30000, // 30 segundos de timeout
+          timeout: 60000, // 60 segundos de timeout (para múltiples operaciones)
         }
       )
 

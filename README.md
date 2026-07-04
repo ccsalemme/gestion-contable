@@ -12,6 +12,7 @@ Plataforma web empresarial, escalable y segura para gestionar información finan
 - ✅ **API REST**: Endpoints bien documentados
 - ✅ **TypeScript**: Código fuertemente tipado
 - ✅ **Escalable**: Arquitectura preparada para crecimiento
+- ✅ **Testing Completo**: Suite de tests automáticos (unitarios, integración, E2E)
 
 ## 🚀 Quick Start
 
@@ -238,10 +239,82 @@ npm install
 
 Propietario - Todos los derechos reservados
 
+## 🧪 Testing
+
+La aplicación cuenta con una **suite completa de tests automáticos** que valida toda la funcionalidad de principio a fin.
+
+### 🚀 Inicio Rápido de Testing
+
+```powershell
+# 1. Instalar dependencias de testing (solo primera vez)
+.\tests\scripts\install-dependencies.ps1
+
+# 2. Ejecutar todos los tests
+.\tests\scripts\run-all-tests.ps1
+
+# 3. O ejecutar test rápido (validación webhook)
+.\tests\scripts\test-webhook.ps1
+```
+
+### 📊 Niveles de Testing
+
+| Nivel | Herramienta | Ubicación | Tiempo |
+|-------|-------------|-----------|---------|
+| **Backend Unit** | Jest | `tests/backend/unit/` | ~5s |
+| **Backend Integration** | Jest + Supertest | `tests/backend/integration/` | ~30s |
+| **Frontend Unit** | Vitest | `tests/frontend/unit/` | ~10s |
+| **E2E Full** | Playwright | `tests/e2e/specs/` | ~2min |
+| **Quick Webhook** | PowerShell | `tests/scripts/test-webhook.ps1` | ~10s |
+
+### 🎯 Qué se Prueba
+
+- ✅ Validación de DTOs y modelos
+- ✅ Lógica de servicios backend
+- ✅ Endpoints con autenticación
+- ✅ Renderizado de componentes React
+- ✅ Validación de formularios
+- ✅ Flujo completo: Login → Operación → Verificación
+- ✅ Integración con Google Sheets
+- ✅ Los 3 tipos de operaciones (Solo Compra, Solo Venta, Vinculadas)
+- ✅ Liquidaciones
+
+### 📚 Documentación de Tests
+
+Para guías detalladas, ver:
+- **[tests/INDEX.md](tests/INDEX.md)** - Índice principal y overview
+- **[tests/QUICKSTART.md](tests/QUICKSTART.md)** - Guía rápida de comandos
+- **[tests/README.md](tests/README.md)** - Documentación completa
+- **[tests/INSTALL.md](tests/INSTALL.md)** - Instalación paso a paso
+
+### ⚡ Comandos Rápidos
+
+```powershell
+# Ejecutar todos los tests
+.\tests\scripts\run-all-tests.ps1
+
+# Tests individuales
+cd backend && npm test              # Tests backend
+cd frontend && npm test             # Tests frontend
+cd tests/e2e && npx playwright test # Tests E2E
+
+# Con interfaz visual
+cd frontend && npm run test:ui           # Vitest UI
+cd tests/e2e && npx playwright test --ui # Playwright UI
+
+# Ver coverage
+cd backend && npm run test:cov       # Coverage backend
+cd frontend && npm run test:coverage # Coverage frontend
+```
+
+### ⚠️ Nota Importante
+
+Los **tests E2E escriben datos reales** en Google Sheets. Se recomienda usar una hoja de testing separada.
+
 ## 🔗 Enlaces
 
 - [Frontend README](frontend/README.md)
 - [Backend README](backend/README.md)
+- [Testing Documentation](tests/INDEX.md)
 
 ## 📞 Soporte
 

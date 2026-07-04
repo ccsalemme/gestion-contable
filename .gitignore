@@ -38,3 +38,12 @@ coverage/
 .turbo/
 turbo.log
 .cache/
+
+# Credentials & Secrets (CRÍTICO)
+backend/credentials/
+**/google-service-account.json
+*.pem
+*.key
+*.p12
+*-key.json
+service-account*.json

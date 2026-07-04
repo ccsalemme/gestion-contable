@@ -291,7 +291,13 @@ export function MovementsPage() {
                     placeholder="Ej: 1.015"
                     {...register('compra.costo', {
                       required: mostrarCompra ? 'El costo es obligatorio' : false,
-                      min: { value: 0.01, message: 'Debe ser mayor a 0' },
+                      validate: {
+                        validNumber: (value) => {
+                          if (!mostrarCompra) return true; // No validar si no está visible
+                          if (value === undefined || value === null || value === '') return 'El costo es obligatorio';
+                          return value > 0 || 'Debe ser mayor a 0';
+                        },
+                      },
                       valueAsNumber: true,
                     })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none ${
@@ -372,7 +378,13 @@ export function MovementsPage() {
                     placeholder="Ej: 1.015"
                     {...register('venta.costo', {
                       required: mostrarVenta ? 'El costo es obligatorio' : false,
-                      min: { value: 0.01, message: 'Debe ser mayor a 0' },
+                      validate: {
+                        validNumber: (value) => {
+                          if (!mostrarVenta) return true; // No validar si no está visible
+                          if (value === undefined || value === null || value === '') return 'El costo es obligatorio';
+                          return value > 0 || 'Debe ser mayor a 0';
+                        },
+                      },
                       valueAsNumber: true,
                     })}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none ${

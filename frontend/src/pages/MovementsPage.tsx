@@ -40,7 +40,8 @@ export function MovementsPage() {
   })
 
   const tipoOperacion = watch('tipoOperacion')
-  const usaSaldoActual = watch('venta.usaSaldoActual')  const motivo = watch('motivo')
+  const usaSaldoActual = watch('venta.usaSaldoActual')
+  const motivo = watch('motivo')
 
   // Cuando se selecciona "Liquidación", forzar tipo de operación a "Compra y Venta Vinculadas"
   useEffect(() => {

@@ -915,7 +915,15 @@ function crearHojaSiNoExiste(ss, nombreHoja) {
     hoja.getRange(1, 11).setValue("De parte de");       // K1
     hoja.getRange(1, 12).setValue("A");                 // L1
     
-    Logger.log("Hoja '" + nombreHoja + "' creada con encabezados.");
+    // Aplicar colores a los encabezados
+    hoja.getRange(1, 3).setBackground("#00ff00");   // C1: Verde
+    hoja.getRange(1, 4).setBackground("#ff0000");   // D1: Rojo
+    hoja.getRange(1, 7).setBackground("#00ffff");   // G1: Cyan
+    hoja.getRange(1, 10).setBackground("#00ff00");  // J1: Verde
+    hoja.getRange(1, 11).setBackground("#00ff00");  // K1: Verde
+    hoja.getRange(1, 12).setBackground("#00ff00");  // L1: Verde
+    
+    Logger.log("Hoja '" + nombreHoja + "' creada con encabezados y colores.");
   } else {
     Logger.log("La hoja '" + nombreHoja + "' ya existe.");
   }
@@ -1004,15 +1012,20 @@ function escribirLiquidacion(ss, nombreHoja, rowFormInput, sheetFormInput, tipoO
       return;
     }
     
-    // Encontrar la última fila con datos
-    let ultimaFila = hoja.getLastRow();
-    if (ultimaFila === 0 || ultimaFila === 1) {
-      ultimaFila = 3; // Si es hoja nueva con encabezados, empezar en fila 3
-    } else {
-      ultimaFila += 1; // Siguiente fila disponible
+    // Encontrar la primera fila disponible SOLO en columnas J-M
+    let ultimaFila = 3; // Empezar desde fila 3 (después de encabezados)
+    const maxRow = hoja.getMaxRows();
+    
+    // Buscar la primera fila vacía en columna J (col 10)
+    for (let i = 3; i <= maxRow; i++) {
+      const valorJ = hoja.getRange(i, 10).getValue();
+      if (!valorJ || valorJ === '') {
+        ultimaFila = i;
+        break;
+      }
     }
     
-    Logger.log("Escribiendo liquidación en fila " + ultimaFila + ", columnas J-M");
+    Logger.log("Escribiendo liquidación en fila " + ultimaFila + ", columnas J-M (primera disponible en tabla J-M)");
     
     // Determinar vendedor y comprador según el tipo de operación
     let vendedor = '';

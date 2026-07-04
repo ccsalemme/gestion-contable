@@ -108,10 +108,10 @@ function Test-CreateMovements {
 
     Start-Sleep -Seconds 2
 
-    # Operacion 2: Liquidacion
+    # Operacion 2: Liquidacion (DEBE ser Compra y Venta Vinculadas)
     Write-Host "   [2/3] Creando Liquidacion..." -ForegroundColor Gray
     $movementLiquidacion = @{
-        tipoOperacion = "Solo Compra"
+        tipoOperacion = "Compra y Venta Vinculadas"
         moneda = "USD"
         motivo = "Liquidación"
         casoEspecial = $true
@@ -120,6 +120,12 @@ function Test-CreateMovements {
             monto = 500
             contraparte = "Proveedor Liquidacion"
             costo = 1.005
+        }
+        venta = @{
+            monto = 500
+            contraparte = "Cliente Liquidacion"
+            costo = 1.008
+            usaSaldoActual = $false
         }
     } | ConvertTo-Json
 

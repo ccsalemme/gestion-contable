@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { sheetsApi } from '@/api/sheets'
 import { Movement, MotivoMovimiento, TipoOperacion, Moneda, EstadoTransaccion } from '@/types/movement'
@@ -17,6 +17,7 @@ export function MovementsPage() {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<MovementFormData>({
     defaultValues: {
       tipoOperacion: TipoOperacion.SOLO_COMPRA,
@@ -39,8 +40,14 @@ export function MovementsPage() {
   })
 
   const tipoOperacion = watch('tipoOperacion')
-  const usaSaldoActual = watch('venta.usaSaldoActual')
+  const usaSaldoActual = watch('venta.usaSaldoActual')  const motivo = watch('motivo')
 
+  // Cuando se selecciona "Liquidación", forzar tipo de operación a "Compra y Venta Vinculadas"
+  useEffect(() => {
+    if (motivo === MotivoMovimiento.LIQUIDACION && tipoOperacion !== TipoOperacion.COMPRA_VENTA_VINCULADAS) {
+      setValue('tipoOperacion', TipoOperacion.COMPRA_VENTA_VINCULADAS)
+    }
+  }, [motivo, tipoOperacion, setValue])
   const onSubmit = async (data: MovementFormData) => {
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -83,8 +90,8 @@ export function MovementsPage() {
   const mostrarVenta = tipoOperacion === TipoOperacion.SOLO_VENTA || tipoOperacion === TipoOperacion.COMPRA_VENTA_VINCULADAS
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 py-8">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl p-8">
+    <div className="min-h-screen bg-gray-50 p-4 py-8 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl mx-auto p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Registro de Operaciones
@@ -106,22 +113,37 @@ export function MovementsPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <label className="block text-sm font-medium text-gray-900 mb-3">
               Tipo de Operación <span className="text-red-500">*</span>
+              {motivo === MotivoMovimiento.LIQUIDACION && (
+                <span className="ml-2 text-xs text-blue-600 font-normal">
+                  (Liquidación requiere Compra y Venta Vinculadas)
+                </span>
+              )}
             </label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+              <label className={`flex items-center p-3 border-2 rounded-lg transition-colors ${
+                motivo === MotivoMovimiento.LIQUIDACION 
+                  ? 'cursor-not-allowed opacity-50 bg-gray-100' 
+                  : 'cursor-pointer hover:bg-blue-100'
+              }`}>
                 <input
                   type="radio"
                   value={TipoOperacion.SOLO_COMPRA}
                   {...register('tipoOperacion')}
+                  disabled={motivo === MotivoMovimiento.LIQUIDACION}
                   className="w-4 h-4 text-blue-600"
                 />
                 <span className="ml-2 text-sm font-medium">Solo Compra</span>
               </label>
-              <label className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+              <label className={`flex items-center p-3 border-2 rounded-lg transition-colors ${
+                motivo === MotivoMovimiento.LIQUIDACION 
+                  ? 'cursor-not-allowed opacity-50 bg-gray-100' 
+                  : 'cursor-pointer hover:bg-blue-100'
+              }`}>
                 <input
                   type="radio"
                   value={TipoOperacion.SOLO_VENTA}
                   {...register('tipoOperacion')}
+                  disabled={motivo === MotivoMovimiento.LIQUIDACION}
                   className="w-4 h-4 text-blue-600"
                 />
                 <span className="ml-2 text-sm font-medium">Solo Venta</span>

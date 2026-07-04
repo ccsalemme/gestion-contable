@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsString, Matches, Min, IsOptional, ValidateNested, ValidateIf } from 'class-validator'
+import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsString, Matches, Min, IsOptional, ValidateNested, ValidateIf, ValidatorConstraint, ValidatorConstraintInterface, Validate, ValidationArguments } from 'class-validator'
 import { Type } from 'class-transformer'
 
 export enum MotivoMovimiento {
@@ -24,6 +24,24 @@ export enum EstadoTransaccion {
   EN_PROCESO = 'En Proceso',
   CANCELADA = 'Cancelada',
   SIN_ESTADO = 'Sin Estado',
+}
+
+/**
+ * Validador personalizado: si motivo es "Liquidación", tipoOperacion debe ser "Compra y Venta Vinculadas"
+ */
+@ValidatorConstraint({ name: 'isLiquidacionVinculada', async: false })
+export class IsLiquidacionVinculadaConstraint implements ValidatorConstraintInterface {
+  validate(tipoOperacion: any, args: ValidationArguments) {
+    const obj = args.object as any
+    if (obj.motivo === MotivoMovimiento.LIQUIDACION) {
+      return tipoOperacion === TipoOperacion.COMPRA_VENTA_VINCULADAS
+    }
+    return true
+  }
+
+  defaultMessage(args: ValidationArguments) {
+    return 'Si el motivo es Liquidación, el tipo de operación debe ser Compra y Venta Vinculadas'
+  }
 }
 
 export class DatosCompraDto {
@@ -70,6 +88,7 @@ export class DatosVentaDto {
 export class CreateMovementDto {
   @IsEnum(TipoOperacion, { message: 'El tipo de operación debe ser uno de los valores permitidos' })
   @IsNotEmpty({ message: 'El tipo de operación es obligatorio' })
+  @Validate(IsLiquidacionVinculadaConstraint)
   tipoOperacion: TipoOperacion
 
   @IsEnum(Moneda, { message: 'La moneda debe ser USD o ARS' })

@@ -5,6 +5,7 @@ import compression from 'vite-plugin-compression'
 import path from 'path'
 
 export default defineConfig({
+  base: '/gestion-contable/',
   plugins: [
     react(),
     tailwindcss(),

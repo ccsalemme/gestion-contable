@@ -124,16 +124,17 @@ Write-Host "✅ Playwright E2E instalado" -ForegroundColor Green
 Write-Host ""
 Write-Host "⏱️  Tiempo total: $($duration.ToString('mm\:ss'))" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "📚 PRÓXIMOS PASOS:" -ForegroundColor Yellow
+Write-Host "📚 PROXIMOS PASOS:" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "   1. Ejecutar todos los tests:" -ForegroundColor White
 Write-Host "      .\tests\scripts\run-all-tests.ps1" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   2. O ejecutar tests individuales:" -ForegroundColor White
-Write-Host "      cd backend; npm test" -ForegroundColor Cyan
-Write-Host "      cd frontend; npm test" -ForegroundColor Cyan
-Write-Host "      cd tests/e2e; npx playwright test" -ForegroundColor Cyan
+Write-Host "   2. Ejecutar tests individuales:" -ForegroundColor White
+Write-Host "      cd backend" -ForegroundColor Gray
+Write-Host "      npm test" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   3. Ver guia rapida:" -ForegroundColor White
-Write-Host "      Get-Content tests\QUICKSTART.md" -ForegroundColor Cyan
+Write-Host "      cd frontend" -ForegroundColor Gray
+Write-Host "      npm test" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "   3. Ver documentacion: tests\INDEX.md" -ForegroundColor White
 Write-Host ""

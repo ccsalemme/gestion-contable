@@ -207,6 +207,24 @@ export function MovementsPage() {
             </div>
           </div>
 
+          {/* Campo de texto para motivo personalizado cuando es "Otro" */}
+          {motivo === MotivoMovimiento.OTRO && (
+            <div>
+              <label htmlFor="motivoOtro" className="block text-sm font-medium text-gray-700 mb-2">
+                Especificar Motivo <span className="text-gray-400">(Opcional)</span>
+              </label>
+              <input
+                id="motivoOtro"
+                type="text"
+                placeholder="Ingrese el motivo específico"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Si no especifica, se guardará como "Otro"
+              </p>
+            </div>
+          )}
+
           {/* Sección de Compra */}
           {mostrarCompra && (
             <div className="border-2 border-green-200 rounded-lg p-6 bg-green-50">
@@ -367,27 +385,27 @@ export function MovementsPage() {
                 </div>
               </div>
 
-              {/* Usa Saldo Actual */}
-              <div className="flex items-start pt-2">
-                <div className="flex items-center h-5">
-                  <input
-                    id="venta.usaSaldoActual"
-                    type="checkbox"
-                    {...register('venta.usaSaldoActual')}
-                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                  />
+              {/* Usa Saldo Actual - Solo visible en Solo Venta */}
+              {tipoOperacion === TipoOperacion.SOLO_VENTA && (
+                <div className="flex items-start pt-2">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="venta.usaSaldoActual"
+                      type="checkbox"
+                      {...register('venta.usaSaldoActual')}
+                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    />
+                  </div>
+                  <div className="ml-3">
+                    <label htmlFor="venta.usaSaldoActual" className="text-sm font-medium text-gray-700">
+                      Utiliza Saldo Actual
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Si no usa saldo actual, debe vincular con una compra
+                    </p>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <label htmlFor="venta.usaSaldoActual" className="text-sm font-medium text-gray-700">
-                    Utiliza Saldo Actual
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {tipoOperacion === TipoOperacion.SOLO_VENTA 
-                      ? 'Si no usa saldo actual, debe vincular con una compra'
-                      : 'Marca si esta venta usa el saldo disponible en lugar de la compra vinculada'}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -408,7 +426,7 @@ export function MovementsPage() {
             </select>
           </div>
 
-          {/* Caso Especial */}
+          {/* Ignorar en la contabilidad */}
           <div className="flex items-start">
             <div className="flex items-center h-5">
               <input
@@ -420,10 +438,10 @@ export function MovementsPage() {
             </div>
             <div className="ml-3">
               <label htmlFor="casoEspecial" className="text-sm font-medium text-gray-700">
-                Caso Especial
+                Ignorar en la contabilidad
               </label>
               <p className="text-xs text-gray-500 mt-1">
-                Marque si esta operación requiere atención o seguimiento especial
+                Marque si esta operación no debe incluirse en los cálculos contables
               </p>
             </div>
           </div>

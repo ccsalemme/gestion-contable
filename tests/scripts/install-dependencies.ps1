@@ -130,10 +130,10 @@ Write-Host "   1. Ejecutar todos los tests:" -ForegroundColor White
 Write-Host "      .\tests\scripts\run-all-tests.ps1" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   2. O ejecutar tests individuales:" -ForegroundColor White
-Write-Host "      cd backend && npm test" -ForegroundColor Cyan
-Write-Host "      cd frontend && npm test" -ForegroundColor Cyan
-Write-Host "      cd tests/e2e && npx playwright test" -ForegroundColor Cyan
+Write-Host "      cd backend; npm test" -ForegroundColor Cyan
+Write-Host "      cd frontend; npm test" -ForegroundColor Cyan
+Write-Host "      cd tests/e2e; npx playwright test" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   3. Ver guía rápida:" -ForegroundColor White
-Write-Host "      cat tests/QUICKSTART.md" -ForegroundColor Cyan
+Write-Host "      Get-Content tests/QUICKSTART.md" -ForegroundColor Cyan
 Write-Host ""

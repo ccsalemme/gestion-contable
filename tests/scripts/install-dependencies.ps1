@@ -134,6 +134,6 @@ Write-Host "      cd backend; npm test" -ForegroundColor Cyan
 Write-Host "      cd frontend; npm test" -ForegroundColor Cyan
 Write-Host "      cd tests/e2e; npx playwright test" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   3. Ver guía rápida:" -ForegroundColor White
-Write-Host "      Get-Content tests/QUICKSTART.md" -ForegroundColor Cyan
+Write-Host "   3. Ver guia rapida:" -ForegroundColor White
+Write-Host "      Get-Content tests\QUICKSTART.md" -ForegroundColor Cyan
 Write-Host ""

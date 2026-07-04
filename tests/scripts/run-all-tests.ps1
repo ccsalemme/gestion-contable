@@ -1,18 +1,13 @@
 # =============================================================================
-# SCRIPT DE EJECUCIÓN DE TODOS LOS TESTS
-# =============================================================================
-# Ejecuta toda la suite de tests de la aplicación en orden:
-# 1. Tests unitarios backend
-# 2. Tests integración backend  
-# 3. Tests unitarios frontend
-# 4. Tests E2E completos
+# EJECUCION DE TODOS LOS TESTS
 # =============================================================================
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "🧪 ================================================" -ForegroundColor Cyan
-Write-Host "🧪 INICIANDO SUITE COMPLETA DE TESTS" -ForegroundColor Cyan
-Write-Host "🧪 ================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "EJECUTANDO SUITE COMPLETA DE TESTS" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $testResults = @{
@@ -25,128 +20,127 @@ $testResults = @{
 $startTime = Get-Date
 
 # =============================================================================
-# 1. TESTS UNITARIOS BACKEND
+# 1. BACKEND UNIT
 # =============================================================================
-Write-Host "📦 [1/4] Ejecutando Tests Unitarios Backend..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[1/4] Tests Unitarios Backend..." -ForegroundColor Yellow
 
 try {
     Push-Location backend
     npm test -- --testPathPattern="tests/backend/unit" --passWithNoTests
     if ($LASTEXITCODE -eq 0) {
         $testResults["Backend Unit"] = $true
-        Write-Host "✅ Tests unitarios backend PASARON" -ForegroundColor Green
+        Write-Host "OK - Backend unit tests pasaron" -ForegroundColor Green
     } else {
-        Write-Host "❌ Tests unitarios backend FALLARON" -ForegroundColor Red
+        Write-Host "FAIL - Backend unit tests fallaron" -ForegroundColor Red
     }
     Pop-Location
 } catch {
-    Write-Host "❌ Error ejecutando tests unitarios backend: $_" -ForegroundColor Red
+    Write-Host "ERROR: $_" -ForegroundColor Red
     Pop-Location
 }
 
 Write-Host ""
 
 # =============================================================================
-# 2. TESTS DE INTEGRACIÓN BACKEND
+# 2. BACKEND INTEGRATION
 # =============================================================================
-Write-Host "🔗 [2/4] Ejecutando Tests de Integración Backend..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[2/4] Tests Integracion Backend..." -ForegroundColor Yellow
 
 try {
     Push-Location backend
     npm test -- --testPathPattern="tests/backend/integration" --passWithNoTests
     if ($LASTEXITCODE -eq 0) {
         $testResults["Backend Integration"] = $true
-        Write-Host "✅ Tests integración backend PASARON" -ForegroundColor Green
+        Write-Host "OK - Backend integration tests pasaron" -ForegroundColor Green
     } else {
-        Write-Host "❌ Tests integración backend FALLARON" -ForegroundColor Red
+        Write-Host "FAIL - Backend integration tests fallaron" -ForegroundColor Red
     }
     Pop-Location
 } catch {
-    Write-Host "❌ Error ejecutando tests integración backend: $_" -ForegroundColor Red
+    Write-Host "ERROR: $_" -ForegroundColor Red
     Pop-Location
 }
 
 Write-Host ""
 
 # =============================================================================
-# 3. TESTS UNITARIOS FRONTEND
+# 3. FRONTEND UNIT
 # =============================================================================
-Write-Host "⚛️ [3/4] Ejecutando Tests Unitarios Frontend..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[3/4] Tests Unitarios Frontend..." -ForegroundColor Yellow
 
 try {
     Push-Location frontend
     npm test -- --run
     if ($LASTEXITCODE -eq 0) {
         $testResults["Frontend Unit"] = $true
-        Write-Host "✅ Tests unitarios frontend PASARON" -ForegroundColor Green
+        Write-Host "OK - Frontend unit tests pasaron" -ForegroundColor Green
     } else {
-        Write-Host "❌ Tests unitarios frontend FALLARON" -ForegroundColor Red
+        Write-Host "FAIL - Frontend unit tests fallaron" -ForegroundColor Red
     }
     Pop-Location
 } catch {
-    Write-Host "❌ Error ejecutando tests unitarios frontend: $_" -ForegroundColor Red
+    Write-Host "ERROR: $_" -ForegroundColor Red
     Pop-Location
 }
 
 Write-Host ""
 
 # =============================================================================
-# 4. TESTS E2E COMPLETOS (PLAYWRIGHT)
+# 4. E2E
 # =============================================================================
-Write-Host "🎭 [4/4] Ejecutando Tests E2E Completos..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[4/4] Tests E2E..." -ForegroundColor Yellow
 
 try {
-    Push-Location tests/e2e
+    Push-Location tests
+    Push-Location e2e
     npx playwright test
     if ($LASTEXITCODE -eq 0) {
         $testResults["E2E Full"] = $true
-        Write-Host "✅ Tests E2E PASARON" -ForegroundColor Green
+        Write-Host "OK - E2E tests pasaron" -ForegroundColor Green
     } else {
-        Write-Host "❌ Tests E2E FALLARON" -ForegroundColor Red
+        Write-Host "FAIL - E2E tests fallaron" -ForegroundColor Red
     }
     Pop-Location
+    Pop-Location
 } catch {
-    Write-Host "❌ Error ejecutando tests E2E: $_" -ForegroundColor Red
+    Write-Host "ERROR: $_" -ForegroundColor Red
+    Pop-Location
     Pop-Location
 }
 
 Write-Host ""
 
 # =============================================================================
-# RESUMEN DE RESULTADOS
+# RESUMEN
 # =============================================================================
 $endTime = Get-Date
 $durationSeconds = ($endTime - $startTime).TotalSeconds
 $durationMinutes = [Math]::Floor($durationSeconds / 60)
 $durationSecondsRemainder = [Math]::Floor($durationSeconds % 60)
-$durationString = "{0:D2}:{1:D2}" -f $durationMinutes, $durationSecondsRemainder
 
-Write-Host "🧪 ================================================" -ForegroundColor Cyan
-Write-Host "🧪 RESUMEN DE TESTS" -ForegroundColor Cyan
-Write-Host "🧪 ================================================" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "RESUMEN DE TESTS" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $allPassed = $true
 foreach ($test in $testResults.GetEnumerator()) {
-    $status = if ($test.Value) { "✅ PASS" } else { "❌ FAIL"; $allPassed = $false }
-    $color = if ($test.Value) { "Green" } else { "Red" }
-    Write-Host "$status - $($test.Key)" -ForegroundColor $color
+    if ($test.Value) {
+        Write-Host "PASS - $($test.Key)" -ForegroundColor Green
+    } else {
+        Write-Host "FAIL - $($test.Key)" -ForegroundColor Red
+        $allPassed = $false
+    }
 }
 
 Write-Host ""
-Write-Host "⏱️  Tiempo total: $durationString" -ForegroundColor Cyan
+Write-Host "Tiempo: $durationMinutes min $durationSecondsRemainder seg" -ForegroundColor Cyan
 Write-Host ""
 
 if ($allPassed) {
-    Write-Host "🎉 TODOS LOS TESTS PASARON" -ForegroundColor Green
-    Write-Host "✓ La aplicación está funcionando correctamente" -ForegroundColor Green
+    Write-Host "TODOS LOS TESTS PASARON" -ForegroundColor Green
     exit 0
 } else {
-    Write-Host "⚠️  ALGUNOS TESTS FALLARON" -ForegroundColor Red
-    Write-Host "Revisa los logs arriba para más detalles" -ForegroundColor Yellow
+    Write-Host "ALGUNOS TESTS FALLARON" -ForegroundColor Red
     exit 1
 }

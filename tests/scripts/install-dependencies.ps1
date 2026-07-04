@@ -1,40 +1,37 @@
 # =============================================================================
-# SCRIPT DE INSTALACIÓN RÁPIDA DE DEPENDENCIAS DE TESTING
-# =============================================================================
-# Este script instala todas las dependencias necesarias para ejecutar tests
+# INSTALACION DE DEPENDENCIAS DE TESTING
 # =============================================================================
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "📦 ================================================" -ForegroundColor Cyan
-Write-Host "📦 INSTALANDO DEPENDENCIAS DE TESTING" -ForegroundColor Cyan
-Write-Host "📦 ================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "INSTALANDO DEPENDENCIAS DE TESTING" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
 $startTime = Get-Date
 
 # =============================================================================
-# 1. BACKEND TESTING DEPENDENCIES
+# 1. BACKEND
 # =============================================================================
-Write-Host "🔧 [1/3] Instalando dependencias de testing backend..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[1/3] Backend testing..." -ForegroundColor Yellow
 
 try {
     Push-Location backend
-    
-    Write-Host "   → Instalando supertest..." -ForegroundColor Gray
+    Write-Host "   Instalando supertest..."
     npm install --save-dev supertest
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "   ✅ Dependencias backend instaladas" -ForegroundColor Green
+        Write-Host "   OK - Backend instalado" -ForegroundColor Green
     } else {
-        Write-Host "   ❌ Error instalando dependencias backend" -ForegroundColor Red
+        Write-Host "   ERROR - Backend fallo" -ForegroundColor Red
+        Pop-Location
         exit 1
     }
-    
     Pop-Location
 } catch {
-    Write-Host "   ❌ Error: $_" -ForegroundColor Red
+    Write-Host "   ERROR: $_" -ForegroundColor Red
     Pop-Location
     exit 1
 }
@@ -42,27 +39,25 @@ try {
 Write-Host ""
 
 # =============================================================================
-# 2. FRONTEND TESTING DEPENDENCIES
+# 2. FRONTEND
 # =============================================================================
-Write-Host "⚛️  [2/3] Instalando dependencias de testing frontend..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[2/3] Frontend testing..." -ForegroundColor Yellow
 
 try {
     Push-Location frontend
-    
-    Write-Host "   → Instalando vitest y testing-library..." -ForegroundColor Gray
+    Write-Host "   Instalando vitest y testing-library..."
     npm install --save-dev vitest @vitest/ui @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "   ✅ Dependencias frontend instaladas" -ForegroundColor Green
+        Write-Host "   OK - Frontend instalado" -ForegroundColor Green
     } else {
-        Write-Host "   ❌ Error instalando dependencias frontend" -ForegroundColor Red
+        Write-Host "   ERROR - Frontend fallo" -ForegroundColor Red
+        Pop-Location
         exit 1
     }
-    
     Pop-Location
 } catch {
-    Write-Host "   ❌ Error: $_" -ForegroundColor Red
+    Write-Host "   ERROR: $_" -ForegroundColor Red
     Pop-Location
     exit 1
 }
@@ -70,38 +65,41 @@ try {
 Write-Host ""
 
 # =============================================================================
-# 3. E2E TESTING DEPENDENCIES (PLAYWRIGHT)
+# 3. E2E PLAYWRIGHT
 # =============================================================================
-Write-Host "🎭 [3/3] Instalando Playwright para E2E testing..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "[3/3] Playwright E2E..." -ForegroundColor Yellow
 
 try {
-    Push-Location tests/e2e
+    Push-Location tests
+    Push-Location e2e
     
-    Write-Host "   → Instalando @playwright/test..." -ForegroundColor Gray
+    Write-Host "   Instalando playwright..."
     npm install
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "   ❌ Error instalando playwright" -ForegroundColor Red
+        Write-Host "   ERROR - Playwright fallo" -ForegroundColor Red
+        Pop-Location
         Pop-Location
         exit 1
     }
     
-    Write-Host "   → Instalando navegadores Chromium..." -ForegroundColor Gray
-    Write-Host "   (Esto puede tardar varios minutos...)" -ForegroundColor Gray
+    Write-Host "   Instalando navegadores (puede tardar)..."
     npx playwright install chromium
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "   ✅ Playwright instalado correctamente" -ForegroundColor Green
+        Write-Host "   OK - Playwright instalado" -ForegroundColor Green
     } else {
-        Write-Host "   ❌ Error instalando navegadores" -ForegroundColor Red
+        Write-Host "   ERROR - Navegadores fallaron" -ForegroundColor Red
+        Pop-Location
         Pop-Location
         exit 1
     }
     
     Pop-Location
+    Pop-Location
 } catch {
-    Write-Host "   ❌ Error: $_" -ForegroundColor Red
+    Write-Host "   ERROR: $_" -ForegroundColor Red
+    Pop-Location
     Pop-Location
     exit 1
 }
@@ -115,29 +113,17 @@ $endTime = Get-Date
 $durationSeconds = ($endTime - $startTime).TotalSeconds
 $durationMinutes = [Math]::Floor($durationSeconds / 60)
 $durationSecondsRemainder = [Math]::Floor($durationSeconds % 60)
-$durationString = "{0:D2}:{1:D2}" -f $durationMinutes, $durationSecondsRemainder
 
-Write-Host "🎉 ================================================" -ForegroundColor Green
-Write-Host "🎉 INSTALACION COMPLETADA" -ForegroundColor Green
-Write-Host "🎉 ================================================" -ForegroundColor Green
+Write-Host "================================================" -ForegroundColor Green
+Write-Host "INSTALACION COMPLETADA" -ForegroundColor Green
+Write-Host "================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "✅ Backend testing dependencies instaladas" -ForegroundColor Green
-Write-Host "✅ Frontend testing dependencies instaladas" -ForegroundColor Green
-Write-Host "✅ Playwright E2E instalado" -ForegroundColor Green
+Write-Host "Backend: OK" -ForegroundColor Green
+Write-Host "Frontend: OK" -ForegroundColor Green
+Write-Host "Playwright: OK" -ForegroundColor Green
 Write-Host ""
-Write-Host "⏱️  Tiempo total: $durationString" -ForegroundColor Cyan
+Write-Host "Tiempo: $durationMinutes min $durationSecondsRemainder seg" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "📚 PROXIMOS PASOS:" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "   1. Ejecutar todos los tests:" -ForegroundColor White
-Write-Host "      .\tests\scripts\run-all-tests.ps1" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "   2. Ejecutar tests individuales:" -ForegroundColor White
-Write-Host "      cd backend" -ForegroundColor Gray
-Write-Host "      npm test" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "      cd frontend" -ForegroundColor Gray
-Write-Host "      npm test" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "   3. Ver documentacion: tests\INDEX.md" -ForegroundColor White
+Write-Host "EJECUTAR TESTS:" -ForegroundColor Yellow
+Write-Host "  .\tests\scripts\run-all-tests.ps1" -ForegroundColor Cyan
 Write-Host ""

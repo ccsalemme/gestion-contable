@@ -112,17 +112,20 @@ Write-Host ""
 # RESUMEN
 # =============================================================================
 $endTime = Get-Date
-$duration = $endTime - $startTime
+$durationSeconds = ($endTime - $startTime).TotalSeconds
+$durationMinutes = [Math]::Floor($durationSeconds / 60)
+$durationSecondsRemainder = [Math]::Floor($durationSeconds % 60)
+$durationString = "{0:D2}:{1:D2}" -f $durationMinutes, $durationSecondsRemainder
 
 Write-Host "🎉 ================================================" -ForegroundColor Green
-Write-Host "🎉 INSTALACIÓN COMPLETADA" -ForegroundColor Green
+Write-Host "🎉 INSTALACION COMPLETADA" -ForegroundColor Green
 Write-Host "🎉 ================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "✅ Backend testing dependencies instaladas" -ForegroundColor Green
 Write-Host "✅ Frontend testing dependencies instaladas" -ForegroundColor Green
 Write-Host "✅ Playwright E2E instalado" -ForegroundColor Green
 Write-Host ""
-Write-Host "⏱️  Tiempo total: $($duration.ToString('mm\:ss'))" -ForegroundColor Cyan
+Write-Host "⏱️  Tiempo total: $durationString" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "📚 PROXIMOS PASOS:" -ForegroundColor Yellow
 Write-Host ""

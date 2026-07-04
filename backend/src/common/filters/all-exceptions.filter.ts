@@ -40,12 +40,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : undefined,
     )
 
-    response.status(status).json({
+    // 🔒 SEGURIDAD: Ocultar detalles en producción
+    const isProduction = process.env.NODE_ENV === 'production'
+    
+    const errorResponse: any = {
       statusCode: status,
-      message,
-      error,
+      message: isProduction && status === 500 ? 'Internal server error' : message,
       timestamp: new Date().toISOString(),
-      path: request.url,
-    })
+    }
+
+    // Solo incluir detalles en desarrollo
+    if (!isProduction) {
+      errorResponse.error = error
+      errorResponse.path = request.url
+    }
+
+    response.status(status).json(errorResponse)
   }
 }

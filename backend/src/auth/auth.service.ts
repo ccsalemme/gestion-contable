@@ -23,6 +23,13 @@ export class AuthService {
   }
 
   private async initializeMockUsers() {
+    // 🔒 SEGURIDAD: Mock users SOLO en desarrollo
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️  Mock users disabled in production. Use real database.')
+      console.warn('⚠️  Authentication will NOT work until you implement PostgreSQL/Supabase')
+      return
+    }
+    
     const testUsers = [
       {
         id: 'bb484727-8a16-47d8-ba64-c13766e754aa',
@@ -61,16 +68,25 @@ export class AuthService {
       })
     }
 
-    console.log('✅ Mock users initialized:', Array.from(this.mockUsers.keys()))
+    console.log('✅ Mock users initialized (DEV ONLY):', Array.from(this.mockUsers.keys()))
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    console.log(`🔐 Login attempt for: ${loginDto.email}`)
+    // 🔒 SEGURIDAD: Bloquear login en producción si no hay DB
+    if (process.env.NODE_ENV === 'production' && this.mockUsers.size === 0) {
+      throw new UnauthorizedException('Authentication not configured. Database required.')
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 Login attempt for: ${loginDto.email}`)
+    }
     
     const user = this.mockUsers.get(loginDto.email)
 
     if (!user || !(await bcrypt.compare(loginDto.password, user.passwordHash))) {
-      console.log(`❌ Invalid credentials for: ${loginDto.email}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Invalid credentials for: ${loginDto.email}`)
+      }
       throw new UnauthorizedException('Invalid credentials')
     }
 
@@ -84,7 +100,9 @@ export class AuthService {
       role: user.role,
     })
 
-    console.log(`✅ Login successful for: ${loginDto.email}`)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Login successful for: ${loginDto.email}`)
+    }
 
     return {
       user: {

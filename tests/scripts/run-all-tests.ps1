@@ -120,7 +120,10 @@ Write-Host ""
 # RESUMEN DE RESULTADOS
 # =============================================================================
 $endTime = Get-Date
-$duration = $endTime - $startTime
+$durationSeconds = ($endTime - $startTime).TotalSeconds
+$durationMinutes = [Math]::Floor($durationSeconds / 60)
+$durationSecondsRemainder = [Math]::Floor($durationSeconds % 60)
+$durationString = "{0:D2}:{1:D2}" -f $durationMinutes, $durationSecondsRemainder
 
 Write-Host "🧪 ================================================" -ForegroundColor Cyan
 Write-Host "🧪 RESUMEN DE TESTS" -ForegroundColor Cyan
@@ -135,7 +138,7 @@ foreach ($test in $testResults.GetEnumerator()) {
 }
 
 Write-Host ""
-Write-Host "⏱️  Tiempo total: $($duration.ToString('mm\:ss'))" -ForegroundColor Cyan
+Write-Host "⏱️  Tiempo total: $durationString" -ForegroundColor Cyan
 Write-Host ""
 
 if ($allPassed) {

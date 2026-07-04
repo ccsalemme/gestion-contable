@@ -25,30 +25,55 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api')
 
-  // CORS con logs para debuggear
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000'
+  // 🔒 SEGURIDAD: CORS configuration
+  let corsOrigin = process.env.CORS_ORIGIN
+  
+  // Validar CORS en producción
+  if (process.env.NODE_ENV === 'production') {
+    if (!corsOrigin) {
+      console.error('❌ ERROR: CORS_ORIGIN must be set in production')
+      process.exit(1)
+    }
+    if (corsOrigin === '*') {
+      console.error('❌ ERROR: Wildcard CORS (*) not allowed in production')
+      process.exit(1)
+    }
+  } else {
+    corsOrigin = corsOrigin || 'http://localhost:3000'
+  }
+  
   const allowedOrigins = corsOrigin.split(',').map(o => o.trim())
   
-  console.log('🔐 CORS Configuration:')
-  console.log(`   NODE_ENV: ${process.env.NODE_ENV}`)
-  console.log(`   CORS_ORIGIN env var: ${process.env.CORS_ORIGIN}`)
-  console.log(`   Allowed origins: ${JSON.stringify(allowedOrigins)}`)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔐 CORS Configuration:')
+    console.log(`   NODE_ENV: ${process.env.NODE_ENV}`)
+    console.log(`   CORS_ORIGIN env var: ${process.env.CORS_ORIGIN}`)
+    console.log(`   Allowed origins: ${JSON.stringify(allowedOrigins)}`)
+  }
   
   app.enableCors({
     origin: (origin, callback) => {
-      console.log(`📨 CORS preflight request from origin: ${origin}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📨 CORS preflight request from origin: ${origin}`)
+      }
       
       if (!origin) {
-        console.log('✅ No origin header (same-origin request)')
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ No origin header (same-origin request)')
+        }
         return callback(null, true)
       }
       
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-        console.log(`✅ Origin allowed: ${origin}`)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Origin allowed: ${origin}`)
+        }
         return callback(null, true)
       }
       
-      console.log(`❌ Origin NOT allowed: ${origin}`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Origin NOT allowed: ${origin}`)
+      }
       return callback(new Error(`CORS not allowed for origin: ${origin}`))
     },
     credentials: true,

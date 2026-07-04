@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, Get } from '@nestjs/common'
+import { Controller, Post, Body, HttpCode, Get, ForbiddenException } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'
 import { AuthService } from './auth.service'
 import { LoginDto, AuthResponseDto } from '../dto/auth.dto'
@@ -12,6 +12,11 @@ export class AuthController {
   @Public()
   @Get('debug/env')
   async debugEnv() {
+    // 🔒 SEGURIDAD: Solo permitir en desarrollo
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Debug endpoint disabled in production')
+    }
+    
     const secret = process.env.JWT_SECRET || 'your-secret-key'
     return {
       jwt_secret_length: secret.length,

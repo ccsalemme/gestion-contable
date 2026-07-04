@@ -17,18 +17,27 @@ import { UserEntity } from '../entities/user.entity'
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET') || 'your-secret-key'
+        const secret = configService.get<string>('JWT_SECRET')
         const expirationStr = configService.get<string>('JWT_EXPIRATION') || '3600'
         const expiration = parseInt(expirationStr, 10)
         
-        console.log('🔧 JWT Module Config:', { 
-          secretLength: secret.length,
-          expiration: `${expiration}s (${expiration/60} minutes)`,
-          expirationRaw: expirationStr
-        })
+        // 🔒 SEGURIDAD: JWT_SECRET obligatorio en producción
+        if (!secret && process.env.NODE_ENV === 'production') {
+          throw new Error('❌ CRITICAL: JWT_SECRET must be set in production environment')
+        }
+        
+        const finalSecret = secret || 'dev-only-insecure-secret-change-in-production'
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔧 JWT Module Config:', { 
+            secretLength: finalSecret.length,
+            expiration: `${expiration}s (${expiration/60} minutes)`,
+            expirationRaw: expirationStr
+          })
+        }
         
         return {
-          secret,
+          secret: finalSecret,
           signOptions: {
             expiresIn: expiration, // número en segundos
           },

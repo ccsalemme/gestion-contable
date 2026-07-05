@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createHashRouter } from "react-router";
 import Root from "@/components/Root";
 import Login from "@/components/Login";
 import AppLayout from "@/components/AppLayout";
@@ -7,7 +7,7 @@ import FilesView from "@/components/FilesView";
 import ExportView from "@/components/ExportView";
 import { MovementsPage } from "@/pages";
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: "/",
     Component: Root,
@@ -25,6 +25,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-], {
-  basename: import.meta.env.BASE_URL || '/',
-});
+]);

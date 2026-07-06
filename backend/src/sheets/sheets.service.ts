@@ -71,52 +71,19 @@ export class SheetsService {
 
       if (jsonCredentials) {
         this.logger.log('✅ Using Google credentials from environment variable')
+        // SOLUTION: Write JSON to temp file and let googleapis read it directly
+        // This avoids all parsing/encoding issues with private_key
         try {
-          credentials = JSON.parse(jsonCredentials)
+          const tmpDir = require('os').tmpdir()
+          const tmpFile = path.join(tmpDir, 'google-sheets-credentials.json')
+          fs.writeFileSync(tmpFile, jsonCredentials, 'utf8')
+          this.logger.log(`📄 Wrote credentials to temp file: ${tmpFile}`)
           
-          // Debug: Log server time and private_key details
-          const serverTime = new Date().toISOString()
-          this.logger.log(`🕐 Server time: ${serverTime}`)
-          
-          // Fix: Check if private_key first 100 chars contain a REAL newline (not \n text)
-          if (credentials.private_key) {
-            const keyLength = credentials.private_key.length
-            const keyLineCount = credentials.private_key.split('\n').length
-            const first100 = credentials.private_key.substring(0, 100)
-            const hasRealNewline = first100.split('\n').length > 1
-            this.logger.log(`🔍 Private key stats: length=${keyLength}, lines=${keyLineCount}, hasNewline=${hasRealNewline}`)
-            
-            if (!hasRealNewline) {
-              this.logger.log('🔧 Private key has no real newlines, reformatting...')
-              // Remove any literal \n and rebuild with proper structure
-              let key = credentials.private_key.replace(/\\n/g, '')
-              key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
-              key = key.replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
-              
-              const beginMatch = key.match(/-----BEGIN PRIVATE KEY-----\n/)
-              const endMatch = key.match(/\n-----END PRIVATE KEY-----/)
-              if (beginMatch && endMatch) {
-                const header = beginMatch[0]
-                const footer = endMatch[0]
-                const startIdx = beginMatch.index + beginMatch[0].length
-                const endIdx = endMatch.index
-                const body = key.substring(startIdx, endIdx)
-                
-                // Split body into 64-char lines
-                const lines = []
-                for (let i = 0; i < body.length; i += 64) {
-                  lines.push(body.substring(i, i + 64))
-                }
-                credentials.private_key = header + lines.join('\n') + footer
-                this.logger.log('✅ Private key reformatted with proper line breaks')
-              }
-            }
-          }
-          
-          this.logger.log(`✅ JSON parsed successfully. Email: ${credentials.client_email}`)
-        } catch (parseError) {
-          this.logger.error(`❌ Failed to parse JSON: ${parseError.message}`)
-          this.logger.error(`First 100 chars: ${jsonCredentials.substring(0, 100)}`)
+          //Read it back to use the same path as local development
+          credentials = JSON.parse(fs.readFileSync(tmpFile, 'utf8'))
+          this.logger.log(`✅ Credentials loaded from temp file. Email: ${credentials.client_email}`)
+        } catch (error) {
+          this.logger.error(`❌ Failed to process env credentials: ${error.message}`)
           return
         }
       } else {

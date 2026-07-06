@@ -73,6 +73,10 @@ export class SheetsService {
         this.logger.log('✅ Using Google credentials from environment variable')
         try {
           credentials = JSON.parse(jsonCredentials)
+          // Fix: Replace escaped \n with actual newlines in private_key
+          if (credentials.private_key) {
+            credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+          }
           this.logger.log(`✅ JSON parsed successfully. Email: ${credentials.client_email}`)
         } catch (parseError) {
           this.logger.error(`❌ Failed to parse JSON: ${parseError.message}`)

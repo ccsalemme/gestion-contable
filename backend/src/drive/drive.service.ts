@@ -35,6 +35,10 @@ export class DriveService {
         this.logger.log('Using Google credentials from environment variable')
         try {
           credentials = JSON.parse(jsonCredentials)
+          // Fix: Replace escaped \n with actual newlines in private_key
+          if (credentials.private_key) {
+            credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+          }
           this.logger.log(`✅ Drive JSON parsed. Email: ${credentials.client_email}`)
         } catch (parseError) {
           this.logger.error(`❌ Failed to parse Drive JSON: ${parseError.message}`)

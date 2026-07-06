@@ -63,27 +63,47 @@ export class SheetsService {
     try {
       this.logger.log('🔧 Iniciando configuración de Google Sheets...')
       
-      const keyPath = this.configService.get<string>('GOOGLE_SHEETS_PRIVATE_KEY_PATH')
-      
-      if (!keyPath) {
-        this.logger.warn('⚠️ GOOGLE_SHEETS_PRIVATE_KEY_PATH not configured')
-        return
-      }
-      
-      this.logger.log(`📁 Ruta de credenciales: ${keyPath}`)
-      
-      const fullPath = path.join(process.cwd(), keyPath)
-      
-      this.logger.log(`📂 Ruta completa: ${fullPath}`)
-      
-      if (!fs.existsSync(fullPath)) {
-        this.logger.warn(`⚠️ Google Sheets credentials not found at ${fullPath}`)
-        return
-      }
+      // Intentar leer credenciales desde variable de entorno (Render)
+      const jsonCredentials = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON')
+      this.logger.log(`🔍 GOOGLE_SERVICE_ACCOUNT_JSON exists: ${jsonCredentials ? 'YES' : 'NO'}`)
+      this.logger.log(`🔍 Length: ${jsonCredentials ? jsonCredentials.length : 0}`)
+      let credentials: any
 
-      this.logger.log('📄 Archivo de credenciales encontrado, leyendo...')
-      
-      const credentials = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+      if (jsonCredentials) {
+        this.logger.log('✅ Using Google credentials from environment variable')
+        try {
+          credentials = JSON.parse(jsonCredentials)
+          this.logger.log(`✅ JSON parsed successfully. Email: ${credentials.client_email}`)
+        } catch (parseError) {
+          this.logger.error(`❌ Failed to parse JSON: ${parseError.message}`)
+          this.logger.error(`First 100 chars: ${jsonCredentials.substring(0, 100)}`)
+          return
+        }
+      } else {
+        // Fallback: leer desde archivo (desarrollo local)
+        this.logger.log('📁 Intentando leer credenciales desde archivo...')
+        const keyPath = this.configService.get<string>('GOOGLE_SHEETS_PRIVATE_KEY_PATH')
+        
+        if (!keyPath) {
+          this.logger.warn('⚠️  Neither GOOGLE_SERVICE_ACCOUNT_JSON nor GOOGLE_SHEETS_PRIVATE_KEY_PATH configured')
+          return
+        }
+        
+        this.logger.log(`📁 Ruta de credenciales: ${keyPath}`)
+        
+        const fullPath = path.join(process.cwd(), keyPath)
+        
+        this.logger.log(`📂 Ruta completa: ${fullPath}`)
+        
+        if (!fs.existsSync(fullPath)) {
+          this.logger.warn(`⚠️  Google Sheets credentials not found at ${fullPath}`)
+          return
+        }
+
+        this.logger.log('📄 Archivo de credenciales encontrado, leyendo...')
+        
+        credentials = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+      }
       
       this.logger.log('🔐 Creando autenticación de Google...')
       

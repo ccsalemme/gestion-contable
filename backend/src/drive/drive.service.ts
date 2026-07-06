@@ -26,21 +26,38 @@ export class DriveService {
 
   private async initializeGoogleDrive() {
     try {
-      const keyPath = this.configService.get<string>('GOOGLE_SHEETS_PRIVATE_KEY_PATH')
-      
-      if (!keyPath) {
-        this.logger.warn('GOOGLE_SHEETS_PRIVATE_KEY_PATH not configured')
-        return
-      }
-      
-      const fullPath = path.join(process.cwd(), keyPath)
-      
-      if (!fs.existsSync(fullPath)) {
-        this.logger.warn(`Google Drive credentials not found at ${fullPath}`)
-        return
-      }
+      // Intentar leer credenciales desde variable de entorno (Render)
+      const jsonCredentials = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_JSON')
+      this.logger.log(`🔍 GOOGLE_SERVICE_ACCOUNT_JSON exists: ${jsonCredentials ? 'YES' : 'NO'}`)
+      let credentials: any
 
-      const credentials = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+      if (jsonCredentials) {
+        this.logger.log('Using Google credentials from environment variable')
+        try {
+          credentials = JSON.parse(jsonCredentials)
+          this.logger.log(`✅ Drive JSON parsed. Email: ${credentials.client_email}`)
+        } catch (parseError) {
+          this.logger.error(`❌ Failed to parse Drive JSON: ${parseError.message}`)
+          return
+        }
+      } else {
+        // Fallback: leer desde archivo (desarrollo local)
+        const keyPath = this.configService.get<string>('GOOGLE_SHEETS_PRIVATE_KEY_PATH')
+        
+        if (!keyPath) {
+          this.logger.warn('Neither GOOGLE_SERVICE_ACCOUNT_JSON nor GOOGLE_SHEETS_PRIVATE_KEY_PATH configured')
+          return
+        }
+        
+        const fullPath = path.join(process.cwd(), keyPath)
+        
+        if (!fs.existsSync(fullPath)) {
+          this.logger.warn(`Google Drive credentials not found at ${fullPath}`)
+          return
+        }
+
+        credentials = JSON.parse(fs.readFileSync(fullPath, 'utf8'))
+      }
       
       this.auth = new google.auth.GoogleAuth({
         credentials,

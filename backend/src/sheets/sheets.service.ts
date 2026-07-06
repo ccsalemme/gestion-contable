@@ -72,33 +72,38 @@ export class SheetsService {
       if (jsonCredentials) {
         this.logger.log('✅ Using Google credentials from environment variable')
         try {
-          // First try: parse as-is (in case \n are already in the JSON string)
           credentials = JSON.parse(jsonCredentials)
           
-          // Fix: If private_key is all on one line, add proper line breaks
-          if (credentials.private_key && !credentials.private_key.includes('\n')) {
-            this.logger.log('🔧 Private key has no line breaks, reformatting...')
-            // Insert newline after BEGIN header and before END footer
-            let key = credentials.private_key
-            key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
-            key = key.replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
-            // Add newlines every 64 characters in the middle section
-            const lines = []
-            const beginMatch = key.match(/-----BEGIN PRIVATE KEY-----\n/)
-            const endMatch = key.match(/\n-----END PRIVATE KEY-----/)
-            if (beginMatch && endMatch) {
-              const header = beginMatch[0]
-              const footer = endMatch[0]
-              const startIdx = beginMatch.index + beginMatch[0].length
-              const endIdx = endMatch.index
-              const body = key.substring(startIdx, endIdx)
+          // Fix: Check if private_key first 100 chars contain a REAL newline (not \n text)
+          if (credentials.private_key) {
+            const first100 = credentials.private_key.substring(0, 100)
+            const hasRealNewline = first100.split('\n').length > 1
+            this.logger.log(`🔍 Private key first 100 chars have real newline: ${hasRealNewline}`)
+            
+            if (!hasRealNewline) {
+              this.logger.log('🔧 Private key has no real newlines, reformatting...')
+              // Remove any literal \n and rebuild with proper structure
+              let key = credentials.private_key.replace(/\\n/g, '')
+              key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+              key = key.replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
               
-              // Split body into 64-char lines
-              for (let i = 0; i < body.length; i += 64) {
-                lines.push(body.substring(i, i + 64))
+              const beginMatch = key.match(/-----BEGIN PRIVATE KEY-----\n/)
+              const endMatch = key.match(/\n-----END PRIVATE KEY-----/)
+              if (beginMatch && endMatch) {
+                const header = beginMatch[0]
+                const footer = endMatch[0]
+                const startIdx = beginMatch.index + beginMatch[0].length
+                const endIdx = endMatch.index
+                const body = key.substring(startIdx, endIdx)
+                
+                // Split body into 64-char lines
+                const lines = []
+                for (let i = 0; i < body.length; i += 64) {
+                  lines.push(body.substring(i, i + 64))
+                }
+                credentials.private_key = header + lines.join('\n') + footer
+                this.logger.log('✅ Private key reformatted with proper line breaks')
               }
-              credentials.private_key = header + lines.join('\n') + footer
-              this.logger.log('✅ Private key reformatted with proper line breaks')
             }
           }
           

@@ -75,7 +75,12 @@ export class SheetsService {
           credentials = JSON.parse(jsonCredentials)
           // Fix: Replace escaped \n with actual newlines in private_key
           if (credentials.private_key) {
+            const keyBefore = credentials.private_key.substring(0, 100)
+            this.logger.log(`🔍 Private key BEFORE replace (first 100): ${keyBefore}`)
             credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+            const keyAfter = credentials.private_key.substring(0, 100)
+            this.logger.log(`🔍 Private key AFTER replace (first 100): ${keyAfter}`)
+            this.logger.log(`🔍 Contains literal backslash-n: ${credentials.private_key.includes('\\n')}`)
           }
           this.logger.log(`✅ JSON parsed successfully. Email: ${credentials.client_email}`)
         } catch (parseError) {

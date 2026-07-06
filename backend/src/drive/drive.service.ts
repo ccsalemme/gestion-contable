@@ -35,10 +35,29 @@ export class DriveService {
         this.logger.log('Using Google credentials from environment variable')
         try {
           credentials = JSON.parse(jsonCredentials)
-          // Fix: Replace escaped \n with actual newlines in private_key
-          if (credentials.private_key) {
-            credentials.private_key = credentials.private_key.replace(/\\n/g, '\n')
+          
+          // Fix: If private_key is all on one line, add proper line breaks
+          if (credentials.private_key && !credentials.private_key.includes('\n')) {
+            this.logger.log('🔧 Drive: Private key has no line breaks, reformatting...')
+            let key = credentials.private_key
+            key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+            key = key.replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
+            const lines = []
+            const beginMatch = key.match(/-----BEGIN PRIVATE KEY-----\n/)
+            const endMatch = key.match(/\n-----END PRIVATE KEY-----/)
+            if (beginMatch && endMatch) {
+              const header = beginMatch[0]
+              const footer = endMatch[0]
+              const startIdx = beginMatch.index + beginMatch[0].length
+              const endIdx = endMatch.index
+              const body = key.substring(startIdx, endIdx)
+              for (let i = 0; i < body.length; i += 64) {
+                lines.push(body.substring(i, i + 64))
+              }
+              credentials.private_key = header + lines.join('\n') + footer
+            }
           }
+          
           this.logger.log(`✅ Drive JSON parsed. Email: ${credentials.client_email}`)
         } catch (parseError) {
           this.logger.error(`❌ Failed to parse Drive JSON: ${parseError.message}`)

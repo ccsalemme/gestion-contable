@@ -74,11 +74,17 @@ export class SheetsService {
         try {
           credentials = JSON.parse(jsonCredentials)
           
+          // Debug: Log server time and private_key details
+          const serverTime = new Date().toISOString()
+          this.logger.log(`🕐 Server time: ${serverTime}`)
+          
           // Fix: Check if private_key first 100 chars contain a REAL newline (not \n text)
           if (credentials.private_key) {
+            const keyLength = credentials.private_key.length
+            const keyLineCount = credentials.private_key.split('\n').length
             const first100 = credentials.private_key.substring(0, 100)
             const hasRealNewline = first100.split('\n').length > 1
-            this.logger.log(`🔍 Private key first 100 chars have real newline: ${hasRealNewline}`)
+            this.logger.log(`🔍 Private key stats: length=${keyLength}, lines=${keyLineCount}, hasNewline=${hasRealNewline}`)
             
             if (!hasRealNewline) {
               this.logger.log('🔧 Private key has no real newlines, reformatting...')
